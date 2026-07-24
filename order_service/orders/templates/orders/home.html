@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-page">
+
+    <div class="dashboard-header">
+        <div class="user-block">
+            <div class="user-icon">👤</div>
+            <div>
+                <div class="user-title">
+                    {{ request.user.first_name }} {{ request.user.last_name }}
+                </div>
+                <div class="user-subtitle">
+                    {{ request.user.profile.title }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+
+        <section class="dashboard-card">
+            <div class="section-title">
+                Покупки <span>+</span>
+            </div>
+
+            <a href="{% url 'order_list' %}" class="menu-link">Мои заказы</a>
+            <a href="#" class="menu-link">Каталог товаров</a>
+            <a href="#" class="menu-link">Адреса</a>
+            <a href="#" class="menu-link">Способы оплаты</a>
+            <a href="#" class="menu-link">Вернуться на сайт</a>
+        </section>
+
+        <section class="dashboard-card">
+            <div class="section-title">
+                Центр обучения <span>+</span>
+            </div>
+
+            <a href="#" class="menu-link">Мои записи</a>
+            <a href="#" class="menu-link">Календарь мероприятий</a>
+        </section>
+
+    </div>
+
+    <div class="logout-block">
+        <a href="{% url 'logout' %}" class="logout-link">Выйти из аккаунта</a>
+    </div>
+
+</div>
+{% endblock %}

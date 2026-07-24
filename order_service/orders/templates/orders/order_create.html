@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="order-create-page">
+
+    <div class="breadcrumbs">
+        <a href="{% url 'home' %}">Главная</a>
+        <span>/</span>
+        <a href="{% url 'order_list' %}">Мои заказы</a>
+        <span>/</span>
+        <span>Новый заказ</span>
+    </div>
+
+    <div class="order-create-header">
+        <h1>Новый заказ</h1>
+        <div class="create-step-indicator">
+            <span class="active">1</span>
+            <span>2</span>
+            <span>3</span>
+            <span>4</span>
+            <span>5</span>
+        </div>
+    </div>
+
+    <div class="order-create-layout">
+
+        <main class="order-create-main">
+
+            <section class="order-step active" data-step="1">
+                <h2>Реквизиты клиента</h2>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Юр. лицо</label>
+                        <select id="clientLegal">
+                            <option>ООО "Империя"</option>
+                            <option>ИП Иванова</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Договор</label>
+                        <select id="contract">
+                            <option>Основной договор</option>
+                            <option>Договор поставки</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Бренд</label>
+                        <select id="brand">
+                            <option>Guinot</option>
+                            <option>Rhea cosmetics</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Комментарий</label>
+                        <input type="text" id="comment" placeholder="Комментарий к заказу">
+                    </div>
+                </div>
+            </section>
+
+            <section class="order-step" data-step="2">
+                <h2>Товары</h2>
+
+                <div class="product-search-row">
+                    <input type="text" placeholder="Поиск товара по названию или артикулу">
+                    <button type="button">Найти</button>
+                </div>
+
+                <div class="product-table-wrap">
+                    <table class="table product-select-table">
+                        <thead>
+                            <tr>
+                                <th>Товар</th>
+                                <th>Артикул</th>
+                                <th>Цена</th>
+                                <th>Кол-во</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>SPOTNINJA Dark Spot Face Treatment</td>
+                                <td>P5514118</td>
+                                <td>5 128,05 руб</td>
+                                <td><input type="number" value="1" min="1"></td>
+                                <td><button type="button" class="small-btn">Добавить</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="order-step" data-step="3">
+                <h2>Промо акции</h2>
+
+                <div class="promo-grid">
+                    <div class="promo-card">
+                        <h3>Подарок при заказе от 30 000 руб</h3>
+                        <p>Добавьте товары на сумму от 30 000 руб и получите подарок.</p>
+                        <div class="promo-actions">
+                            <button type="button" class="secondary-btn">Подробнее</button>
+                            <button type="button" class="small-btn">Добавить в корзину</button>
+                        </div>
+                    </div>
+
+                    <div class="promo-card">
+                        <h3>Скидка на набор ухода</h3>
+                        <p>Специальное предложение для выбранного бренда.</p>
+                        <div class="promo-actions">
+                            <button type="button" class="secondary-btn">Подробнее</button>
+                            <button type="button" class="small-btn">Добавить в корзину</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="order-step" data-step="4">
+                <h2>Отгрузка</h2>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Способ отгрузки</label>
+                        <select>
+                            <option>Доставка</option>
+                            <option>Самовывоз</option>
+                            <option>Транспортная компания</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Адрес доставки</label>
+                        <select>
+                            <option>Москва, Магнитогорская 1</option>
+                            <option>Другой адрес</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field full-width">
+                        <label>Комментарий к доставке</label>
+                        <textarea rows="3" placeholder="Укажите детали доставки"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <section class="order-step" data-step="5">
+                <h2>Подтверждение</h2>
+
+                <div class="confirm-card">
+                    <div>
+                        <span>Юр. лицо</span>
+                        <strong id="confirmClient">ООО "Империя"</strong>
+                    </div>
+                    <div>
+                        <span>Сумма заказа</span>
+                        <strong>0,00 руб</strong>
+                    </div>
+                    <div>
+                        <span>Позиций</span>
+                        <strong>0</strong>
+                    </div>
+                    <div>
+                        <span>Отгрузка</span>
+                        <strong>Доставка</strong>
+                    </div>
+                </div>
+            </section>
+
+            <div class="order-create-actions">
+                <button type="button" class="secondary-btn" id="prevStep">Назад</button>
+                <button type="button" class="primary-btn" id="nextStep">Далее</button>
+                <button type="submit" class="primary-btn d-none" id="submitOrder">Оформить</button>
+            </div>
+
+        </main>
+
+        <aside class="order-cart-summary">
+            <h3>Корзина</h3>
+
+            <div class="cart-summary-row">
+                <span>Позиций</span>
+                <strong>0</strong>
+            </div>
+
+            <div class="cart-summary-row">
+                <span>Сумма</span>
+                <strong>0,00 руб</strong>
+            </div>
+
+            <div class="cart-summary-total">
+                <span>Итого</span>
+                <strong>0,00 руб</strong>
+            </div>
+        </aside>
+
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    let currentStep = 1;
+    const steps = document.querySelectorAll(".order-step");
+    const indicators = document.querySelectorAll(".create-step-indicator span");
+    const prevBtn = document.getElementById("prevStep");
+    const nextBtn = document.getElementById("nextStep");
+    const submitBtn = document.getElementById("submitOrder");
+
+    function showStep(step) {
+        steps.forEach(el => {
+            el.classList.toggle("active", Number(el.dataset.step) === step);
+        });
+
+        indicators.forEach((el, index) => {
+            el.classList.toggle("active", index + 1 <= step);
+        });
+
+        prevBtn.style.display = step === 1 ? "none" : "inline-flex";
+        nextBtn.classList.toggle("d-none", step === 5);
+        submitBtn.classList.toggle("d-none", step !== 5);
+    }
+
+    nextBtn.addEventListener("click", function () {
+        if (currentStep < 5) {
+            currentStep++;
+            showStep(currentStep);
+        }
+    });
+
+    prevBtn.addEventListener("click", function () {
+        if (currentStep > 1) {
+            currentStep--;
+            showStep(currentStep);
+        }
+    });
+
+    showStep(currentStep);
+});
+</script>
+{% endblock %}

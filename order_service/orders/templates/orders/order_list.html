@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="orders-page">
+
+    <div class="orders-topbar">
+        <div class="search-box">
+            <span class="menu-icon">☰</span>
+            <span class="search-icon">⌕</span>
+            <input type="text" placeholder="Поиск в моих заказах">
+        </div>
+
+        <a href="{% url 'order_create' %}" class="create-order-btn">
+            + Новый заказ
+        </a>
+    </div>
+
+    
+    <div class="breadcrumbs">
+        <a href="{% url 'home' %}">Главная</a>
+        <span>/</span>
+        <span>Мои заказы</span>
+    </div>
+
+    <div class="orders-header">
+        <h1>Последние заказы</h1>
+    </div>
+
+    <div class="orders-grid">
+        {% for order in orders %}
+        <a href="{% url 'order_detail' order.order_number %}" class="order-card-link">
+            <div class="order-card">
+                <div class="order-card-head">
+                    <div class="order-number">
+                        Заказ № {{ order.Number }}
+                    </div>
+                    <div>Юр. лицо</div>
+                    <div>Сумма</div>
+                    <div>Статус</div>
+                </div>
+
+                <div class="order-card-body">
+                    <div>{{ order.creation_date|slice:":10" }}</div>
+                    <div>{{ order.customer }}</div>
+                    <div class="total-amount">{{ order.total_amount }}</div>
+                    <div class="order-status-block">
+
+                        <div class="order-status-title">
+                            <i class="bi {{ order.status_icon }}"></i>
+                            <span>{{ order.status }}</span>
+                        </div>
+
+                        <div class="order-status-progress status-step-{{ order.status_value }}">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </a>
+        {% empty %}
+        <div class="empty-orders">
+            Заказов пока нет
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".total-amount").forEach(cell => {
+        const value = parseFloat(cell.textContent.replace(",", "."));
+        if (!isNaN(value)) {
+            cell.textContent = new Intl.NumberFormat("ru-RU", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value) + " руб";
+        }
+    });
+});
+</script>
+{% endblock %}

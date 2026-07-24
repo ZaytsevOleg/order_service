@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: order_service_postgres_dev
+    restart: always
+    environment:
+      POSTGRES_DB: app_db
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: Qazwsxedc1!
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_dev_data:

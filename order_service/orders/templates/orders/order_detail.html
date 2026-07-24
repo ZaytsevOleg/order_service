@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="orders-page">
+
+    <div class="breadcrumbs">
+        <a href="{% url 'home' %}">Главная</a>
+        <span>/</span>
+        <a href="{% url 'order_list' %}">Мои заказы</a>
+        <span>/</span>
+        <span>Заказ № {{ order.Number }}</span>
+    </div>
+
+    <div class="order-title-row">
+        <h1>Заказ № {{ order.Number }}</h1>
+        <div class="order-status-block order-detail-status">
+
+            <div class="order-status-title">
+                <i class="bi {{ order.status_icon }}"></i>
+                <span>{{ order.status_text }}</span>
+            </div>
+
+            <div class="order-status-progress status-step-{{ order.status_value }}">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="order-info-card">
+        <div class="order-info-item">
+            <span>Клиент</span>
+            <strong>{{ order.customer }}</strong>
+        </div>
+
+        <div class="order-info-item">
+            <span>Дата заказа</span>
+            <strong>{{ order.date|slice:":10" }}</strong>
+        </div>
+
+        <div class="order-info-item">
+            <span>Дата отгрузки</span>
+            <strong>{{ order.shipping_date|date:"d.m.Y" }}</strong>
+        </div>
+
+        <div class="order-info-item">
+            <span>Тип отгрузки</span>
+            <strong>{{ order.shipping_type }}</strong>
+        </div>
+
+        <div class="order-info-item order-info-total">
+            <span>Сумма заказа</span>
+            <strong class="total-amount">{{ order.amount }}</strong>
+        </div>
+    </div>
+
+    {% if order.comment %}
+    <div class="order-comment">
+        <strong>Комментарий:</strong>
+        <span>{{ order.comment }}</span>
+    </div>
+    {% endif %}
+
+    <div class="products-header">
+        <h2>Товары в заказе</h2>
+        <span>{{ products|length }} позиций</span>
+    </div>
+
+    <div class="products-table-wrap desktop-products-table">
+        <table class="table products-table">
+            <thead>
+                <tr>
+                    <th>№</th>
+                    <th>Товар</th>
+                    <th>Кол-во</th>
+                    <th>Цена</th>
+                    <th>Скидка</th>
+                    <th>Сумма</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>{{ product.line_number }}</td>
+
+                    <td>
+                        <div class="product-name">{{ product.product_name }}</div>
+                        {% if product.product_article %}
+                        <div class="product-article">Арт. {{ product.product_article }}</div>
+                        {% endif %}
+                    </td>
+
+                    <td>{{ product.quantity }}</td>
+                    <td class="total-amount">{{ product.price }}</td>
+                    <td>{{ product.discount }}%</td>
+                    <td class="total-amount product-row-total">{{ product.amount }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mobile-products-list">
+        {% for product in products %}
+        <div class="mobile-product-card">
+
+            {% if product.product_article %}
+            <div class="product-article">
+                Арт. {{ product.product_article }}
+            </div>
+            {% endif %}
+
+            <div class="product-name">
+                {{ product.product_name }}
+            </div>
+
+
+
+            <div class="product-details">
+
+                <div class="product-details-row">
+                    <div class="product-details-item">
+                        <span>Кол-во</span>
+                        <strong>{{ product.quantity }}</strong>
+                    </div>
+
+                    <div class="product-details-item">
+                        <span>Цена</span>
+                        <strong class="total-amount">{{ product.price }}</strong>
+                    </div>
+                </div>
+
+                <div class="product-details-row">
+                    <div class="product-details-item">
+                        <span>Скидка</span>
+                        <strong>{{ product.discount }}%</strong>
+                    </div>
+
+                    <div class="product-details-item">
+                        <span>Сумма</span>
+                        <strong class="total-amount">{{ product.amount }}</strong>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".total-amount").forEach(cell => {
+        const value = parseFloat(cell.textContent.replace(",", "."));
+        if (!isNaN(value)) {
+            cell.textContent = new Intl.NumberFormat("ru-RU", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value) + " руб";
+        }
+    });
+});
+</script>
+{% endblock %}
