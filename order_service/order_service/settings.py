@@ -38,12 +38,24 @@ load_dotenv(BASE_DIR.parent / ".env")
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=@ydim$+(9fwp(pgxh@jc8dgr#t(b-d@-vc&1b)vjvg4n1&bdm'
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv(
+        "DJANGO_ALLOWED_HOSTS",
+        "127.0.0.1,localhost",
+    ).split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -96,25 +108,29 @@ WSGI_APPLICATION = 'order_service.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'app_db',
-        'USER': 'db_user',
-        'PASSWORD': 'Qazwsxedc1!',
-        'HOST': '127.0.0.1',
-        'PORT': '5433',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ["POSTGRES_DB"],
+        "USER": os.environ["POSTGRES_USER"],
+        "PASSWORD": os.environ["POSTGRES_PASSWORD"],
+        "HOST": os.getenv("POSTGRES_HOST", "127.0.0.1"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": 60,
     },
-    'mssql': {
-        'ENGINE': 'mssql',
-        'NAME': '1c_Warehouse',
-        'USER': 'BI',
-        'PASSWORD': 'Olegpellich1!',
-        'HOST': '10.10.2.106',
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
+    "mssql": {
+        "ENGINE": "mssql",
+        "NAME": os.environ["MSSQL_DB"],
+        "USER": os.environ["MSSQL_USER"],
+        "PASSWORD": os.environ["MSSQL_PASSWORD"],
+        "HOST": os.environ["MSSQL_HOST"],
+        "PORT": os.getenv("MSSQL_PORT", "1433"),
+        "OPTIONS": {
+            "driver": os.getenv(
+                "MSSQL_DRIVER",
+                "ODBC Driver 17 for SQL Server",
+            ),
         },
-    }
+    },
 }
 
 MONGO_CLIENT = MongoClient('mongodb://admin_zo:Olegpellich1!@10.10.2.106:27017/')
