@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+*.env
+
+order_venv
+.venv
+__pycache__
+*.py[cod]
+*.log
+
+.vscode
+.idea
+.ipynb_checkpoints
+
+media
+staticfiles
