@@ -296,8 +296,8 @@ class Contract(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=("legal_entity", "contract_id"),
-                name="unique_legal_entity_contract"
+                fields=("legal_entity", "brand"),
+                name="unique_legal_entity_brand_contract",
             )
         ]
         verbose_name = "Договор"
