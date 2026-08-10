@@ -1,122 +1,154 @@
-from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .models import Order, Product
-from .mongo_utils import get_order_items
-from .forms import OrderForm
-from .managers import OrderManager
-import json
+from django.shortcuts import get_object_or_404, render
 
-STATUS_MAP = {
-    1: "Черновик",
-    2: "Согласование",
-    3: "Оформлен",
-    4: "Отгрузка",
-    5: "Завершен",
-}
+from catalog.models import UserLegalEntityAccess
+from sales.models import Order
+
+from .forms import OrderForm
 
 
 STATUS_ICONS = {
-    1: "bi-pencil",            # Черновик
-    2: "bi-clock-history",     # На согласовании
-    3: "bi-check2-square",     # Оформлен
-    4: "bi-truck",             # Отгрузка
-    5: "bi-patch-check-fill",  # Завершен
+    Order.STATUS_DRAFT: "bi-pencil",
+    Order.STATUS_APPROVAL: "bi-clock-history",
+    Order.STATUS_CONFIRMED: "bi-check2-square",
+    Order.STATUS_SHIPPING: "bi-truck",
+    Order.STATUS_COMPLETED: "bi-patch-check-fill",
 }
-
-
-def get_status_text(status):
-    STATUS_MAP = {
-        1: "Черновик",
-        2: "Согласование",
-        3: "Оформлен",
-        4: "Отгрузка",
-        5: "Завершен",
-    }
-
-    try:
-        return STATUS_MAP.get(int(status), "Неизвестно")
-    except (TypeError, ValueError):
-        return "Неизвестно"
-    
-
-
-# Маршрут списка заказов
-@login_required
-def order_list(request):
-    holding_id = request.user.profile.holding_id
-
-    orders = []
-
-    for order in OrderManager.get_all_orders(holding_id):
-        status_value = int(order.get('status', 0))
-
-        orders.append({
-            'order_number': order.get('order_id'),
-            'Number': order.get('Number'),
-            'customer': order.get('customer'),
-            'creation_date': order.get('date'),
-            'status': STATUS_MAP.get(status_value, 'Неизвестно'),
-            'status_value': status_value,
-            'status_icon': STATUS_ICONS.get(status_value, 'bi-question-circle'),
-            'shipping_date': order.get('shipping_date'),
-            'shipping_type': order.get('shipping_type'),
-            'total_amount': order.get('amount'),
-        })
-
-    return render(request, 'orders/order_list.html', {
-        'orders': orders
-    })
-
 
 
 @login_required
 def home(request):
-    return render(request, 'orders/home.html')
+    return render(
+        request,
+        "orders/home.html",
+    )
 
-def order_create(request):
-    if request.method == 'POST':
-        form = OrderForm(request.POST)
-        if form.is_valid():
-            order = form.save(commit=False)
-            order.partner = request.user
-            order.save()
-            return redirect('order_list')
-    else:
-        form = OrderForm()
-    return render(request, 'orders/order_form.html', {'form': form})
 
-# Маршрут просмотра заказа
+@login_required
+def order_list(request):
+    allowed_legal_entities = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+        .values_list(
+            "legal_entity_id",
+            flat=True,
+        )
+    )
+
+    orders = (
+        Order.objects
+        .filter(
+            customer_id__in=allowed_legal_entities,
+        )
+        .select_related(
+            "customer",
+            "contract",
+            "price_type",
+            "delivery_address",
+            "user",
+        )
+        .order_by("-created_at")
+    )
+
+    order_rows = []
+
+    for order in orders:
+        order_rows.append(
+            {
+                "order_id": order.pk,
+                "order_number": order.number,
+                "Number": order.number,
+                "customer": order.customer.name,
+                "creation_date": order.created_at,
+                "status": order.get_status_display(),
+                "status_value": order.status,
+                "status_icon": STATUS_ICONS.get(
+                    order.status,
+                    "bi-question-circle",
+                ),
+                "shipping_date": None,
+                "shipping_type": order.shipping_type,
+                "total_amount": order.amount,
+            }
+        )
+
+    return render(
+        request,
+        "orders/order_list.html",
+        {
+            "orders": order_rows,
+        },
+    )
+
+
 @login_required
 def order_detail(request, order_id):
-    order = Order.find_by_id(order_id)
+    allowed_legal_entities = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+        .values_list(
+            "legal_entity_id",
+            flat=True,
+        )
+    )
 
-    if order:
-        status_value = int(order.get('status', 0))
-
-        order['status_text'] = STATUS_MAP.get(status_value, 'Неизвестно')
-        order['status_value'] = status_value
-        order['status_icon'] = STATUS_ICONS.get(status_value, 'bi-question-circle')
+    order = get_object_or_404(
+        Order.objects
+        .select_related(
+            "customer",
+            "contract",
+            "price_type",
+            "delivery_address",
+            "user",
+        )
+        .prefetch_related(
+            "items__product",
+        ),
+        pk=order_id,
+        customer_id__in=allowed_legal_entities,
+    )
 
     products = []
 
-    if order:
-        for item in order.get('product_list', []):
-            products.append({
-                'line_number': item.get('LineNumber'),
-                'product_name': item.get('product_name') or item.get('Номенклатура_Key'),
-                'product_article': item.get('product_article'),
-                'quantity': item.get('Количество'),
-                'price': item.get('Цена'),
-                'amount': item.get('Сумма'),
-                'discount': item.get('ПроцентСкидкиНаценки'),
-            })
+    for item in order.items.all():
+        products.append(
+            {
+                "line_number": item.line_number,
+                "product_name": item.product_name,
+                "product_article": item.article,
+                "quantity": item.quantity,
+                "price": item.price,
+                "amount": item.amount,
+                "discount": item.discount_percent,
+            }
+        )
 
-    return render(request, 'orders/order_detail.html', {
-        'order': order,
-        'products': products,
-    })
+    return render(
+        request,
+        "orders/order_detail.html",
+        {
+            "order": order,
+            "products": products,
+            "status_text": order.get_status_display(),
+            "status_icon": STATUS_ICONS.get(
+                order.status,
+                "bi-question-circle",
+            ),
+        },
+    )
 
-# Маршрут создания заказа
+
 @login_required
 def order_create(request):
-    return render(request, 'orders/order_create.html')
+    return render(
+        request,
+        "orders/order_create.html",
+    )

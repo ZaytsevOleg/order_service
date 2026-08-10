@@ -102,6 +102,11 @@ class Order(models.Model):
         max_length=100,
         verbose_name="Способ отгрузки",
     )
+    shipping_date = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Дата отгрузки",
+    )
 
     discount_percent = models.DecimalField(
         max_digits=5,
