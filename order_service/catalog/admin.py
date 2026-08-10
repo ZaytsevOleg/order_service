@@ -89,6 +89,12 @@ class DeliveryAddressInline(admin.TabularInline):
         "is_active",
     )
 
+    can_delete = True
+    show_change_link = True
+
+    verbose_name = "Адрес доставки"
+    verbose_name_plural = "Адреса доставки"
+
 
 class ContractInline(admin.TabularInline):
     model = Contract
@@ -101,6 +107,12 @@ class ContractInline(admin.TabularInline):
         "is_default",
         "is_active",
     )
+
+    can_delete = True
+    show_change_link = True
+
+    verbose_name = "Договор"
+    verbose_name_plural = "Договоры"
 
 
 class UserLegalEntityAccessInline(admin.TabularInline):
@@ -156,11 +168,6 @@ class UserLegalEntityAccessAdmin(admin.ModelAdmin):
         "legal_entity__legal_entity_id",
     )
 
-    autocomplete_fields = (
-        "user",
-        "legal_entity",
-        "price_type",
-    )
 
     list_select_related = (
         "user",
@@ -183,6 +190,10 @@ class UserLegalEntityAccessAdmin(admin.ModelAdmin):
 
 @admin.register(LegalEntity)
 class LegalEntityAdmin(admin.ModelAdmin):
+    change_form_template = (
+        "admin/catalog/legalentity/change_form.html"
+    )
+
     list_display = (
         "name",
         "client_type",
