@@ -5,11 +5,15 @@ from django.shortcuts import (
     render,
 )
 
+from decimal import Decimal, ROUND_HALF_UP
+
+from django.db.models import Q
 from django.http import JsonResponse
 
 from catalog.models import (
     Contract,
     LegalEntityDeliveryAddress,
+    Price,
     UserLegalEntityAccess,
 )
 from sales.models import Order
@@ -239,5 +243,200 @@ def customer_options(request, customer_id):
                 }
                 for address in addresses
             ],
+        }
+    )
+
+
+@login_required
+def customer_products(request, customer_id):
+    contract_id = (
+        request.GET.get("contract_id", "")
+        .strip()
+    )
+
+    search = (
+        request.GET.get("q", "")
+        .strip()
+    )
+
+    if not contract_id:
+        return JsonResponse(
+            {
+                "error": "Не указан договор.",
+            },
+            status=400,
+        )
+
+    # ---------------------------------------------------------
+    # Проверяем доступ пользователя к клиенту
+    # ---------------------------------------------------------
+
+    access = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            legal_entity_id=customer_id,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+        .select_related(
+            "price_type",
+        )
+        .first()
+    )
+
+    if access is None:
+        return JsonResponse(
+            {
+                "error": "Клиент недоступен.",
+            },
+            status=403,
+        )
+
+    if access.price_type_id is None:
+        return JsonResponse(
+            {
+                "error": (
+                    "Для клиента не назначен "
+                    "тип цен."
+                ),
+            },
+            status=400,
+        )
+
+    # ---------------------------------------------------------
+    # Проверяем договор
+    # ---------------------------------------------------------
+
+    contract = (
+        Contract.objects
+        .filter(
+            pk=contract_id,
+            legal_entity_id=customer_id,
+            is_active=True,
+        )
+        .first()
+    )
+
+    if contract is None:
+        return JsonResponse(
+            {
+                "error": (
+                    "Договор не найден "
+                    "или недоступен."
+                ),
+            },
+            status=404,
+        )
+
+    if not contract.brand:
+        return JsonResponse(
+            {
+                "error": (
+                    "У договора не указан бренд."
+                ),
+            },
+            status=400,
+        )
+
+    # ---------------------------------------------------------
+    # Берём товары именно через Price.
+    #
+    # Благодаря этому товар без цены для назначенного
+    # пользователю PriceType вообще не попадёт в выдачу.
+    # ---------------------------------------------------------
+
+    prices = (
+        Price.objects
+        .filter(
+            price_type_id=access.price_type_id,
+            product__brand_id=contract.brand,
+            product__is_active=True,
+            product__is_customer_selectable=True,
+        )
+        .select_related(
+            "product",
+            "product__brand",
+            "price_type",
+        )
+        .order_by(
+            "product__name",
+        )
+    )
+
+    if search:
+        prices = prices.filter(
+            Q(
+                product__name__icontains=search
+            )
+            | Q(
+                product__article__icontains=search
+            )
+        )
+
+    # На первом этапе не отдаём браузеру тысячи строк.
+    prices = prices[:200]
+
+    discount_percent = (
+        access.discount_percent
+        or Decimal("0.00")
+    )
+
+    hundred = Decimal("100.00")
+
+    products = []
+
+    for price_row in prices:
+        base_price = price_row.price
+
+        final_price = (
+            base_price
+            * (
+                hundred
+                - discount_percent
+            )
+            / hundred
+        ).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+
+        product = price_row.product
+
+        products.append(
+            {
+                "product_id": (
+                    str(product.pk)
+                ),
+                "name": product.name,
+                "article": product.article or "",
+                "brand_id": contract.brand,
+                "base_price": str(base_price),
+                "discount_percent": str(
+                    discount_percent
+                ),
+                "final_price": str(
+                    final_price
+                ),
+            }
+        )
+
+    return JsonResponse(
+        {
+            "customer_id": str(customer_id),
+            "contract_id": str(contract.pk),
+            "brand_id": contract.brand,
+            "brand_name": (
+                contract.get_brand_display()
+            ),
+            "price_type": {
+                "id": access.price_type_id,
+                "name": access.price_type.name,
+            },
+            "discount_percent": str(
+                discount_percent
+            ),
+            "count": len(products),
+            "products": products,
         }
     )

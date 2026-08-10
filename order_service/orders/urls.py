@@ -27,4 +27,9 @@ urlpatterns = [
         views.customer_options,
         name="customer_options",
     ),
+    path(
+        "api/customer/<str:customer_id>/products/",
+        views.customer_products,
+        name="customer_products",
+    ),
 ]

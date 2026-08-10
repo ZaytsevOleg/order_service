@@ -540,6 +540,49 @@ document.addEventListener("DOMContentLoaded", function () {
         "brandDisplay"
     );
 
+    const productTableBody =
+        document.getElementById(
+            "productTableBody"
+        );
+
+    const productSearch =
+        document.getElementById(
+            "productSearch"
+        );
+
+    const productSearchButton =
+        document.getElementById(
+            "productSearchButton"
+        );
+
+    const cartItemsCount =
+        document.getElementById(
+            "cartItemsCount"
+        );
+
+    const cartSubtotal =
+        document.getElementById(
+            "cartSubtotal"
+        );
+
+    const cartTotal =
+        document.getElementById(
+            "cartTotal"
+        );
+
+    const confirmItemsCount =
+        document.getElementById(
+            "confirmItemsCount"
+        );
+
+    const confirmAmount =
+        document.getElementById(
+            "confirmAmount"
+        );
+
+
+    const cart = new Map();    
+
     async function loadCustomerOptions() {
 
         if (!customerSelect) {
@@ -635,6 +678,366 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
+    function escapeHtml(value) {
+
+        const element =
+            document.createElement(
+                "div"
+            );
+
+        element.textContent =
+            value ?? "";
+
+        return element.innerHTML;
+    }    
+
+    async function loadProducts() {
+
+        if (
+            !customerSelect
+            || !contractSelect
+            || !productTableBody
+        ) {
+            return;
+        }
+
+        const customerId =
+            customerSelect.value;
+
+        const contractId =
+            contractSelect.value;
+
+        if (
+            !customerId
+            || !contractId
+        ) {
+            productTableBody.innerHTML = `
+                <tr>
+                    <td colspan="5">
+                        Выберите клиента и договор,
+                        чтобы загрузить товары.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+        const search =
+            productSearch
+                ? productSearch.value.trim()
+                : "";
+
+        productTableBody.innerHTML = `
+            <tr>
+                <td colspan="5">
+                    Загрузка товаров...
+                </td>
+            </tr>
+        `;
+
+        try {
+
+            const params =
+                new URLSearchParams();
+
+            params.set(
+                "contract_id",
+                contractId
+            );
+
+            if (search) {
+                params.set(
+                    "q",
+                    search
+                );
+            }
+
+            const response = await fetch(
+                `/orders/api/customer/${customerId}/products/?${params.toString()}`,
+                {
+                    headers: {
+                        "X-Requested-With":
+                            "XMLHttpRequest"
+                    }
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error
+                    || `HTTP ${response.status}`
+                );
+            }
+
+            renderProducts(
+                data.products
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Ошибка загрузки товаров:",
+                error
+            );
+
+            productTableBody.innerHTML = `
+                <tr>
+                    <td colspan="5">
+                        ${escapeHtml(
+                            error.message
+                        )}
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+
+    function renderProducts(products) {
+
+        if (!productTableBody) {
+            return;
+        }
+
+        productTableBody.innerHTML = "";
+
+        if (!products.length) {
+
+            productTableBody.innerHTML = `
+                <tr>
+                    <td colspan="5">
+                        Товары с доступной ценой
+                        не найдены.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+        products.forEach(
+            function (product) {
+
+                const row =
+                    document.createElement(
+                        "tr"
+                    );
+
+                const hasDiscount =
+                    Number(
+                        product.discount_percent
+                    ) > 0;
+
+                let priceHtml =
+                    formatMoney(
+                        product.final_price
+                    );
+
+                if (hasDiscount) {
+
+                    priceHtml = `
+                        <div>
+                            <strong>
+                                ${formatMoney(
+                                    product.final_price
+                                )}
+                            </strong>
+                        </div>
+
+                        <div class="product-old-price">
+                            ${formatMoney(
+                                product.base_price
+                            )}
+                        </div>
+
+                        <div class="product-discount">
+                            −${escapeHtml(
+                                product.discount_percent
+                            )}%
+                        </div>
+                    `;
+                }
+
+                row.innerHTML = `
+                    <td>
+                        ${escapeHtml(
+                            product.name
+                        )}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(
+                            product.article
+                        )}
+                    </td>
+
+                    <td>
+                        ${priceHtml}
+                    </td>
+
+                    <td>
+                        <input
+                            type="number"
+                            class="product-quantity"
+                            value="1"
+                            min="1"
+                            step="1"
+                        >
+                    </td>
+
+                    <td>
+                        <button
+                            type="button"
+                            class="small-btn add-product-btn"
+                        >
+                            Добавить
+                        </button>
+                    </td>
+                `;
+
+                const button =
+                    row.querySelector(
+                        ".add-product-btn"
+                    );
+
+                const quantityInput =
+                    row.querySelector(
+                        ".product-quantity"
+                    );
+
+                button.addEventListener(
+                    "click",
+                    function () {
+
+                        addProductToCart(
+                            product,
+                            quantityInput.value
+                        );
+                    }
+                );
+
+                productTableBody.appendChild(
+                    row
+                );
+            }
+        );
+    }
+
+
+    function addProductToCart(
+        product,
+        quantityValue
+    ) {
+
+        const quantity =
+            Number(quantityValue);
+
+        if (
+            !Number.isFinite(quantity)
+            || quantity <= 0
+        ) {
+            return;
+        }
+
+        const productId =
+            String(
+                product.product_id
+            );
+
+        if (cart.has(productId)) {
+
+            const current =
+                cart.get(productId);
+
+            current.quantity += quantity;
+
+        } else {
+
+            cart.set(
+                productId,
+                {
+                    product_id:
+                        productId,
+
+                    name:
+                        product.name,
+
+                    article:
+                        product.article,
+
+                    price:
+                        Number(
+                            product.final_price
+                        ),
+
+                    base_price:
+                        Number(
+                            product.base_price
+                        ),
+
+                    discount_percent:
+                        Number(
+                            product.discount_percent
+                        ),
+
+                    quantity:
+                        quantity
+                }
+            );
+        }
+
+        updateCartSummary();
+    }
+
+
+    function updateCartSummary() {
+
+        let positions = 0;
+        let total = 0;
+
+        cart.forEach(
+            function (item) {
+
+                positions += 1;
+
+                total += (
+                    item.price
+                    * item.quantity
+                );
+            }
+        );
+
+        if (cartItemsCount) {
+            cartItemsCount.textContent =
+                positions;
+        }
+
+        if (cartSubtotal) {
+            cartSubtotal.textContent =
+                formatMoney(total);
+        }
+
+        if (cartTotal) {
+            cartTotal.textContent =
+                formatMoney(total);
+        }
+
+        if (confirmItemsCount) {
+            confirmItemsCount.textContent =
+                positions;
+        }
+
+        if (confirmAmount) {
+            confirmAmount.textContent =
+                formatMoney(total);
+        }
+    }
+
 
     function getSelectedText(selectElement) {
 
@@ -660,6 +1063,18 @@ document.addEventListener("DOMContentLoaded", function () {
         return option.text;
     }
 
+    function formatMoney(value) {
+
+        const number = Number(value || 0);
+
+        return new Intl.NumberFormat(
+            "ru-RU",
+            {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }
+        ).format(number) + " руб";
+    }
 
     function updateConfirmation() {
 
@@ -770,7 +1185,8 @@ document.addEventListener("DOMContentLoaded", function () {
             option
             && option.dataset.brandName
                 ? option.dataset.brandName
-                : "";
+                : "";        
+                
     }
 
 
@@ -847,9 +1263,16 @@ document.addEventListener("DOMContentLoaded", function () {
             "change",
             async function () {
 
+                cart.clear();
+                updateCartSummary();
+
                 await loadCustomerOptions();
 
                 updateBrandFromContract();
+
+                if (contractSelect.value) {
+                    loadProducts();
+                }
             }
         );
     }
@@ -862,11 +1285,47 @@ document.addEventListener("DOMContentLoaded", function () {
             function () {
 
                 updateBrandFromContract();
+
+                cart.clear();
+                updateCartSummary();
+
+                loadProducts();
             }
         );
     }
 
 
+
+    if (productSearchButton) {
+
+        productSearchButton.addEventListener(
+            "click",
+            function () {
+
+                loadProducts();
+            }
+        );
+    }
+
+
+    if (productSearch) {
+
+        productSearch.addEventListener(
+            "keydown",
+            function (event) {
+
+                if (event.key === "Enter") {
+
+                    event.preventDefault();
+
+                    loadProducts();
+                }
+            }
+        );
+    }
+
+
+    
     prevBtn.addEventListener(
         "click",
         function () {
@@ -882,6 +1341,59 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     );
 
+    function showStep(step) {
+
+        steps.forEach(function (element) {
+
+            element.classList.toggle(
+                "active",
+                Number(
+                    element.dataset.step
+                ) === step
+            );
+
+        });
+
+
+        indicators.forEach(
+            function (element, index) {
+
+                element.classList.toggle(
+                    "active",
+                    index + 1 <= step
+                );
+
+            }
+        );
+
+
+        prevBtn.style.display =
+            step === 1
+                ? "none"
+                : "inline-flex";
+
+
+        nextBtn.classList.toggle(
+            "d-none",
+            step === 5
+        );
+
+
+        submitBtn.classList.toggle(
+            "d-none",
+            step !== 5
+        );
+
+
+        if (step === 2) {
+            loadProducts();
+        }
+
+
+        if (step === 5) {
+            updateConfirmation();
+        }
+    }    
 
     if (
         customerSelect
@@ -895,6 +1407,8 @@ document.addEventListener("DOMContentLoaded", function () {
     showStep(
         currentStep
     );
+
+
 
 });
 </script>
