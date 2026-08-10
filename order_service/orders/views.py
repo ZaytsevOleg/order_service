@@ -1,10 +1,20 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import (
+    get_object_or_404,
+    redirect,
+    render,
+)
 
-from catalog.models import UserLegalEntityAccess
+from django.http import JsonResponse
+
+from catalog.models import (
+    Contract,
+    LegalEntityDeliveryAddress,
+    UserLegalEntityAccess,
+)
 from sales.models import Order
 
-from .forms import OrderForm
+from .forms import OrderCreateForm
 
 
 STATUS_ICONS = {
@@ -54,33 +64,12 @@ def order_list(request):
         .order_by("-created_at")
     )
 
-    order_rows = []
-
-    for order in orders:
-        order_rows.append(
-            {
-                "order_id": order.pk,
-                "order_number": order.number,
-                "Number": order.number,
-                "customer": order.customer.name,
-                "creation_date": order.created_at,
-                "status": order.get_status_display(),
-                "status_value": order.status,
-                "status_icon": STATUS_ICONS.get(
-                    order.status,
-                    "bi-question-circle",
-                ),
-                "shipping_date": None,
-                "shipping_type": order.shipping_type,
-                "total_amount": order.amount,
-            }
-        )
-
     return render(
         request,
         "orders/order_list.html",
         {
-            "orders": order_rows,
+            "orders": orders,
+            "status_icons": STATUS_ICONS,
         },
     )
 
@@ -92,7 +81,6 @@ def order_detail(request, order_id):
         .filter(
             user=request.user,
             is_active=True,
-            legal_entity__is_active=True,
         )
         .values_list(
             "legal_entity_id",
@@ -116,28 +104,12 @@ def order_detail(request, order_id):
         customer_id__in=allowed_legal_entities,
     )
 
-    products = []
-
-    for item in order.items.all():
-        products.append(
-            {
-                "line_number": item.line_number,
-                "product_name": item.product_name,
-                "product_article": item.article,
-                "quantity": item.quantity,
-                "price": item.price,
-                "amount": item.amount,
-                "discount": item.discount_percent,
-            }
-        )
-
     return render(
         request,
         "orders/order_detail.html",
         {
             "order": order,
-            "products": products,
-            "status_text": order.get_status_display(),
+            "products": order.items.all(),
             "status_icon": STATUS_ICONS.get(
                 order.status,
                 "bi-question-circle",
@@ -148,7 +120,124 @@ def order_detail(request, order_id):
 
 @login_required
 def order_create(request):
+    if request.method == "POST":
+        form = OrderCreateForm(
+            request.POST,
+            user=request.user,
+        )
+
+        if form.is_valid():
+            order = form.save(commit=False)
+
+            access = get_object_or_404(
+                UserLegalEntityAccess.objects
+                .select_related("price_type"),
+                user=request.user,
+                legal_entity=order.customer,
+                is_active=True,
+            )
+
+            order.user = request.user
+            order.price_type = access.price_type
+            order.discount_percent = (
+                access.discount_percent
+            )
+
+            order.save()
+
+            return redirect(
+                "order_detail",
+                order_id=order.pk,
+            )
+
+    else:
+        form = OrderCreateForm(
+            user=request.user,
+        )
+
     return render(
         request,
         "orders/order_create.html",
+        {
+            "form": form,
+        },
+    )
+
+@login_required
+def customer_options(request, customer_id):
+    access = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            legal_entity_id=customer_id,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+        .select_related("price_type")
+        .first()
+    )
+
+    if access is None:
+        return JsonResponse(
+            {
+                "error": "Клиент недоступен",
+            },
+            status=403,
+        )
+
+    contracts = (
+        Contract.objects
+        .filter(
+            legal_entity_id=customer_id,
+            is_active=True,
+        )
+        .order_by(
+            "brand",
+            "contract_name",
+        )
+    )
+
+    addresses = (
+        LegalEntityDeliveryAddress.objects
+        .filter(
+            legal_entity_id=customer_id,
+            is_active=True,
+        )
+        .order_by("address")
+    )
+
+    return JsonResponse(
+        {
+            "price_type": {
+                "id": (
+                    access.price_type_id
+                    if access.price_type_id
+                    else None
+                ),
+                "name": (
+                    access.price_type.name
+                    if access.price_type
+                    else None
+                ),
+            },
+            "discount_percent": str(
+                access.discount_percent
+            ),
+            "contracts": [
+                {
+                    "id": contract.pk,
+                    "name": contract.contract_name,
+                    "brand_id": contract.brand,
+                    "brand_name": contract.get_brand_display(),
+                }
+                for contract in contracts
+            ],
+            "addresses": [
+                {
+                    "id": address.pk,
+                    "address": address.address,
+                }
+                for address in addresses
+            ],
+        }
     )

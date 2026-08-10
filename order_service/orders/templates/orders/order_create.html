@@ -13,6 +13,7 @@
 
     <div class="order-create-header">
         <h1>Новый заказ</h1>
+
         <div class="create-step-indicator">
             <span class="active">1</span>
             <span>2</span>
@@ -26,216 +27,876 @@
 
         <main class="order-create-main">
 
-            <section class="order-step active" data-step="1">
-                <h2>Реквизиты клиента</h2>
+            <form
+                method="post"
+                id="orderCreateForm"
+                novalidate
+            >
+                {% csrf_token %}
 
-                <div class="form-grid">
-                    <div class="form-field">
-                        <label>Юр. лицо</label>
-                        <select id="clientLegal">
-                            <option>ООО "Империя"</option>
-                            <option>ИП Иванова</option>
-                        </select>
+                {% if form.non_field_errors %}
+                    <div class="form-errors">
+                        {{ form.non_field_errors }}
                     </div>
+                {% endif %}
 
-                    <div class="form-field">
-                        <label>Договор</label>
-                        <select id="contract">
-                            <option>Основной договор</option>
-                            <option>Договор поставки</option>
-                        </select>
-                    </div>
 
-                    <div class="form-field">
-                        <label>Бренд</label>
-                        <select id="brand">
-                            <option>Guinot</option>
-                            <option>Rhea cosmetics</option>
-                        </select>
-                    </div>
+                <!-- ================================================= -->
+                <!-- ШАГ 1. Реквизиты клиента                          -->
+                <!-- ================================================= -->
 
-                    <div class="form-field">
-                        <label>Комментарий</label>
-                        <input type="text" id="comment" placeholder="Комментарий к заказу">
-                    </div>
-                </div>
-            </section>
+                <section
+                    class="order-step active"
+                    data-step="1"
+                >
+                    <h2>Реквизиты клиента</h2>
 
-            <section class="order-step" data-step="2">
-                <h2>Товары</h2>
+                    <div class="form-grid">
 
-                <div class="product-search-row">
-                    <input type="text" placeholder="Поиск товара по названию или артикулу">
-                    <button type="button">Найти</button>
-                </div>
+                        <div class="form-field">
+                            <label
+                                for="{{ form.customer.id_for_label }}"
+                            >
+                                Юр. лицо
+                            </label>
 
-                <div class="product-table-wrap">
-                    <table class="table product-select-table">
-                        <thead>
-                            <tr>
-                                <th>Товар</th>
-                                <th>Артикул</th>
-                                <th>Цена</th>
-                                <th>Кол-во</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>SPOTNINJA Dark Spot Face Treatment</td>
-                                <td>P5514118</td>
-                                <td>5 128,05 руб</td>
-                                <td><input type="number" value="1" min="1"></td>
-                                <td><button type="button" class="small-btn">Добавить</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                            {{ form.customer }}
 
-            <section class="order-step" data-step="3">
-                <h2>Промо акции</h2>
-
-                <div class="promo-grid">
-                    <div class="promo-card">
-                        <h3>Подарок при заказе от 30 000 руб</h3>
-                        <p>Добавьте товары на сумму от 30 000 руб и получите подарок.</p>
-                        <div class="promo-actions">
-                            <button type="button" class="secondary-btn">Подробнее</button>
-                            <button type="button" class="small-btn">Добавить в корзину</button>
+                            {% if form.customer.errors %}
+                                <div class="field-errors">
+                                    {{ form.customer.errors }}
+                                </div>
+                            {% endif %}
                         </div>
-                    </div>
 
-                    <div class="promo-card">
-                        <h3>Скидка на набор ухода</h3>
-                        <p>Специальное предложение для выбранного бренда.</p>
-                        <div class="promo-actions">
-                            <button type="button" class="secondary-btn">Подробнее</button>
-                            <button type="button" class="small-btn">Добавить в корзину</button>
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.contract.id_for_label }}"
+                            >
+                                Договор
+                            </label>
+
+                            {{ form.contract }}
+
+                            {% if form.contract.errors %}
+                                <div class="field-errors">
+                                    {{ form.contract.errors }}
+                                </div>
+                            {% endif %}
                         </div>
+
+
+                        <div class="form-field">
+                            <label for="brandDisplay">
+                                Бренд
+                            </label>
+
+                            <input
+                                type="text"
+                                id="brandDisplay"
+                                value=""
+                                readonly
+                                placeholder="Определится по договору"
+                            >
+                        </div>
+
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.comment.id_for_label }}"
+                            >
+                                Комментарий
+                            </label>
+
+                            {{ form.comment }}
+
+                            {% if form.comment.errors %}
+                                <div class="field-errors">
+                                    {{ form.comment.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
                     </div>
+                </section>
+
+
+                <!-- ================================================= -->
+                <!-- ШАГ 2. Товары                                    -->
+                <!-- ================================================= -->
+
+                <section
+                    class="order-step"
+                    data-step="2"
+                >
+                    <h2>Товары</h2>
+
+                    <div class="product-search-row">
+                        <input
+                            type="text"
+                            id="productSearch"
+                            placeholder="Поиск товара по названию или артикулу"
+                        >
+
+                        <button
+                            type="button"
+                            id="productSearchButton"
+                        >
+                            Найти
+                        </button>
+                    </div>
+
+
+                    <div class="product-table-wrap">
+                        <table class="table product-select-table">
+
+                            <thead>
+                                <tr>
+                                    <th>Товар</th>
+                                    <th>Артикул</th>
+                                    <th>Цена</th>
+                                    <th>Кол-во</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="productTableBody">
+
+                                <!--
+                                Реальные товары подключим следующим
+                                этапом через PostgreSQL + AJAX.
+
+                                Пока таблица оставлена пустой.
+                                -->
+
+                                <tr id="emptyProductRow">
+                                    <td colspan="5">
+                                        Выберите клиента и договор,
+                                        чтобы загрузить товары.
+                                    </td>
+                                </tr>
+
+                            </tbody>
+                        </table>
+                    </div>
+
+                </section>
+
+
+                <!-- ================================================= -->
+                <!-- ШАГ 3. Промо акции                               -->
+                <!-- ================================================= -->
+
+                <section
+                    class="order-step"
+                    data-step="3"
+                >
+                    <h2>Промо акции</h2>
+
+                    <div class="promo-grid">
+
+                        <div class="promo-card">
+                            <h3>
+                                Подарок при заказе от 30 000 руб
+                            </h3>
+
+                            <p>
+                                Добавьте товары на сумму от
+                                30 000 руб и получите подарок.
+                            </p>
+
+                            <div class="promo-actions">
+                                <button
+                                    type="button"
+                                    class="secondary-btn"
+                                >
+                                    Подробнее
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="small-btn"
+                                >
+                                    Добавить в корзину
+                                </button>
+                            </div>
+                        </div>
+
+
+                        <div class="promo-card">
+                            <h3>
+                                Скидка на набор ухода
+                            </h3>
+
+                            <p>
+                                Специальное предложение
+                                для выбранного бренда.
+                            </p>
+
+                            <div class="promo-actions">
+                                <button
+                                    type="button"
+                                    class="secondary-btn"
+                                >
+                                    Подробнее
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="small-btn"
+                                >
+                                    Добавить в корзину
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+
+                <!-- ================================================= -->
+                <!-- ШАГ 4. Отгрузка                                  -->
+                <!-- ================================================= -->
+
+                <section
+                    class="order-step"
+                    data-step="4"
+                >
+                    <h2>Отгрузка</h2>
+
+                    <div class="form-grid">
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.shipping_type.id_for_label }}"
+                            >
+                                Способ отгрузки
+                            </label>
+
+                            {{ form.shipping_type }}
+
+                            {% if form.shipping_type.errors %}
+                                <div class="field-errors">
+                                    {{ form.shipping_type.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.delivery_address.id_for_label }}"
+                            >
+                                Адрес доставки
+                            </label>
+
+                            {{ form.delivery_address }}
+
+                            {% if form.delivery_address.errors %}
+                                <div class="field-errors">
+                                    {{ form.delivery_address.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.shipping_date.id_for_label }}"
+                            >
+                                Дата отгрузки
+                            </label>
+
+                            {{ form.shipping_date }}
+
+                            {% if form.shipping_date.errors %}
+                                <div class="field-errors">
+                                    {{ form.shipping_date.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.payment_method.id_for_label }}"
+                            >
+                                Форма оплаты
+                            </label>
+
+                            {{ form.payment_method }}
+
+                            {% if form.payment_method.errors %}
+                                <div class="field-errors">
+                                    {{ form.payment_method.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                    </div>
+                </section>
+
+
+                <!-- ================================================= -->
+                <!-- ШАГ 5. Подтверждение                              -->
+                <!-- ================================================= -->
+
+                <section
+                    class="order-step"
+                    data-step="5"
+                >
+                    <h2>Подтверждение</h2>
+
+                    <div class="confirm-card">
+
+                        <div>
+                            <span>Юр. лицо</span>
+                            <strong id="confirmClient">
+                                —
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>Договор</span>
+                            <strong id="confirmContract">
+                                —
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>Бренд</span>
+                            <strong id="confirmBrand">
+                                —
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>Сумма заказа</span>
+                            <strong id="confirmAmount">
+                                0,00 руб
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>Позиций</span>
+                            <strong id="confirmItemsCount">
+                                0
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>Отгрузка</span>
+                            <strong id="confirmShipping">
+                                —
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>Дата отгрузки</span>
+                            <strong id="confirmShippingDate">
+                                —
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>Адрес</span>
+                            <strong id="confirmAddress">
+                                —
+                            </strong>
+                        </div>
+
+                    </div>
+                </section>
+
+
+                <!-- ================================================= -->
+                <!-- КНОПКИ                                            -->
+                <!-- ================================================= -->
+
+                <div class="order-create-actions">
+
+                    <button
+                        type="button"
+                        class="secondary-btn"
+                        id="prevStep"
+                    >
+                        Назад
+                    </button>
+
+                    <button
+                        type="button"
+                        class="primary-btn"
+                        id="nextStep"
+                    >
+                        Далее
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="primary-btn d-none"
+                        id="submitOrder"
+                    >
+                        Оформить
+                    </button>
+
                 </div>
-            </section>
 
-            <section class="order-step" data-step="4">
-                <h2>Отгрузка</h2>
-
-                <div class="form-grid">
-                    <div class="form-field">
-                        <label>Способ отгрузки</label>
-                        <select>
-                            <option>Доставка</option>
-                            <option>Самовывоз</option>
-                            <option>Транспортная компания</option>
-                        </select>
-                    </div>
-
-                    <div class="form-field">
-                        <label>Адрес доставки</label>
-                        <select>
-                            <option>Москва, Магнитогорская 1</option>
-                            <option>Другой адрес</option>
-                        </select>
-                    </div>
-
-                    <div class="form-field full-width">
-                        <label>Комментарий к доставке</label>
-                        <textarea rows="3" placeholder="Укажите детали доставки"></textarea>
-                    </div>
-                </div>
-            </section>
-
-            <section class="order-step" data-step="5">
-                <h2>Подтверждение</h2>
-
-                <div class="confirm-card">
-                    <div>
-                        <span>Юр. лицо</span>
-                        <strong id="confirmClient">ООО "Империя"</strong>
-                    </div>
-                    <div>
-                        <span>Сумма заказа</span>
-                        <strong>0,00 руб</strong>
-                    </div>
-                    <div>
-                        <span>Позиций</span>
-                        <strong>0</strong>
-                    </div>
-                    <div>
-                        <span>Отгрузка</span>
-                        <strong>Доставка</strong>
-                    </div>
-                </div>
-            </section>
-
-            <div class="order-create-actions">
-                <button type="button" class="secondary-btn" id="prevStep">Назад</button>
-                <button type="button" class="primary-btn" id="nextStep">Далее</button>
-                <button type="submit" class="primary-btn d-none" id="submitOrder">Оформить</button>
-            </div>
+            </form>
 
         </main>
 
+
+        <!-- ===================================================== -->
+        <!-- КОРЗИНА                                               -->
+        <!-- ===================================================== -->
+
         <aside class="order-cart-summary">
+
             <h3>Корзина</h3>
 
             <div class="cart-summary-row">
                 <span>Позиций</span>
-                <strong>0</strong>
+                <strong id="cartItemsCount">
+                    0
+                </strong>
             </div>
 
             <div class="cart-summary-row">
                 <span>Сумма</span>
-                <strong>0,00 руб</strong>
+                <strong id="cartSubtotal">
+                    0,00 руб
+                </strong>
             </div>
 
             <div class="cart-summary-total">
                 <span>Итого</span>
-                <strong>0,00 руб</strong>
+                <strong id="cartTotal">
+                    0,00 руб
+                </strong>
             </div>
+
         </aside>
 
     </div>
+
 </div>
+
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+
     let currentStep = 1;
-    const steps = document.querySelectorAll(".order-step");
-    const indicators = document.querySelectorAll(".create-step-indicator span");
-    const prevBtn = document.getElementById("prevStep");
-    const nextBtn = document.getElementById("nextStep");
-    const submitBtn = document.getElementById("submitOrder");
 
-    function showStep(step) {
-        steps.forEach(el => {
-            el.classList.toggle("active", Number(el.dataset.step) === step);
-        });
+    const steps = document.querySelectorAll(
+        ".order-step"
+    );
 
-        indicators.forEach((el, index) => {
-            el.classList.toggle("active", index + 1 <= step);
-        });
+    const indicators = document.querySelectorAll(
+        ".create-step-indicator span"
+    );
 
-        prevBtn.style.display = step === 1 ? "none" : "inline-flex";
-        nextBtn.classList.toggle("d-none", step === 5);
-        submitBtn.classList.toggle("d-none", step !== 5);
+    const prevBtn = document.getElementById(
+        "prevStep"
+    );
+
+    const nextBtn = document.getElementById(
+        "nextStep"
+    );
+
+    const submitBtn = document.getElementById(
+        "submitOrder"
+    );
+
+
+    const customerSelect = document.getElementById(
+        "id_customer"
+    );
+
+    const contractSelect = document.getElementById(
+        "id_contract"
+    );
+
+    const addressSelect = document.getElementById(
+        "id_delivery_address"
+    );
+
+    const shippingTypeSelect = document.getElementById(
+        "id_shipping_type"
+    );
+
+    const shippingDateInput = document.getElementById(
+        "id_shipping_date"
+    );
+
+    const brandDisplay = document.getElementById(
+        "brandDisplay"
+    );
+
+    async function loadCustomerOptions() {
+
+        if (!customerSelect) {
+            return;
+        }
+
+        const customerId = customerSelect.value;
+
+        contractSelect.innerHTML =
+            '<option value="">---------</option>';
+
+        addressSelect.innerHTML =
+            '<option value="">---------</option>';
+
+        if (brandDisplay) {
+            brandDisplay.value = "";
+        }
+
+        if (!customerId) {
+            return;
+        }
+
+        try {
+
+            const response = await fetch(
+                `/orders/api/customer/${customerId}/options/`,
+                {
+                    headers: {
+                        "X-Requested-With":
+                            "XMLHttpRequest"
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    `HTTP ${response.status}`
+                );
+            }
+
+            const data = await response.json();
+
+
+            data.contracts.forEach(
+                function (contract) {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value = contract.id;
+                    option.textContent =
+                        contract.name;
+
+                    option.dataset.brandId =
+                        contract.brand_id;
+
+                    option.dataset.brandName =
+                        contract.brand_name;
+
+                    contractSelect.appendChild(
+                        option
+                    );
+                }
+            );
+
+
+            data.addresses.forEach(
+                function (address) {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value = address.id;
+                    option.textContent =
+                        address.address;
+
+                    addressSelect.appendChild(
+                        option
+                    );
+                }
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Ошибка загрузки данных клиента:",
+                error
+            );
+        }
     }
 
-    nextBtn.addEventListener("click", function () {
-        if (currentStep < 5) {
-            currentStep++;
-            showStep(currentStep);
-        }
-    });
 
-    prevBtn.addEventListener("click", function () {
-        if (currentStep > 1) {
-            currentStep--;
-            showStep(currentStep);
-        }
-    });
+    function getSelectedText(selectElement) {
 
-    showStep(currentStep);
+        if (!selectElement) {
+            return "—";
+        }
+
+        if (
+            selectElement.selectedIndex < 0
+            || !selectElement.options.length
+        ) {
+            return "—";
+        }
+
+        const option = selectElement.options[
+            selectElement.selectedIndex
+        ];
+
+        if (!option || !option.value) {
+            return "—";
+        }
+
+        return option.text;
+    }
+
+
+    function updateConfirmation() {
+
+        const confirmClient =
+            document.getElementById(
+                "confirmClient"
+            );
+
+        const confirmContract =
+            document.getElementById(
+                "confirmContract"
+            );
+
+        const confirmBrand =
+            document.getElementById(
+                "confirmBrand"
+            );
+
+        const confirmShipping =
+            document.getElementById(
+                "confirmShipping"
+            );
+
+        const confirmShippingDate =
+            document.getElementById(
+                "confirmShippingDate"
+            );
+
+        const confirmAddress =
+            document.getElementById(
+                "confirmAddress"
+            );
+
+
+        if (confirmClient) {
+            confirmClient.textContent =
+                getSelectedText(
+                    customerSelect
+                );
+        }
+
+
+        if (confirmContract) {
+            confirmContract.textContent =
+                getSelectedText(
+                    contractSelect
+                );
+        }
+
+
+        if (confirmBrand) {
+            confirmBrand.textContent =
+                brandDisplay
+                ? (
+                    brandDisplay.value
+                    || "—"
+                )
+                : "—";
+        }
+
+
+        if (confirmShipping) {
+            confirmShipping.textContent =
+                getSelectedText(
+                    shippingTypeSelect
+                );
+        }
+
+
+        if (confirmShippingDate) {
+
+            confirmShippingDate.textContent =
+                shippingDateInput
+                && shippingDateInput.value
+                    ? shippingDateInput.value
+                    : "—";
+        }
+
+
+        if (confirmAddress) {
+            confirmAddress.textContent =
+                getSelectedText(
+                    addressSelect
+                );
+        }
+    }
+
+
+    function updateBrandFromContract() {
+
+        if (
+            !contractSelect
+            || contractSelect.selectedIndex < 0
+        ) {
+            return;
+        }
+
+        const option =
+            contractSelect.options[
+                contractSelect.selectedIndex
+            ];
+
+        if (!brandDisplay) {
+            return;
+        }
+
+        brandDisplay.value =
+            option
+            && option.dataset.brandName
+                ? option.dataset.brandName
+                : "";
+    }
+
+
+    function showStep(step) {
+
+        steps.forEach(function (element) {
+
+            element.classList.toggle(
+                "active",
+                Number(
+                    element.dataset.step
+                ) === step
+            );
+
+        });
+
+
+        indicators.forEach(
+            function (element, index) {
+
+                element.classList.toggle(
+                    "active",
+                    index + 1 <= step
+                );
+
+            }
+        );
+
+
+        prevBtn.style.display =
+            step === 1
+                ? "none"
+                : "inline-flex";
+
+
+        nextBtn.classList.toggle(
+            "d-none",
+            step === 5
+        );
+
+
+        submitBtn.classList.toggle(
+            "d-none",
+            step !== 5
+        );
+
+
+        if (step === 5) {
+            updateConfirmation();
+        }
+    }
+
+
+    nextBtn.addEventListener(
+        "click",
+        function () {
+
+            if (currentStep < 5) {
+
+                currentStep += 1;
+
+                showStep(
+                    currentStep
+                );
+            }
+        }
+    );
+
+
+
+    if (customerSelect) {
+
+        customerSelect.addEventListener(
+            "change",
+            async function () {
+
+                await loadCustomerOptions();
+
+                updateBrandFromContract();
+            }
+        );
+    }
+
+
+    if (contractSelect) {
+
+        contractSelect.addEventListener(
+            "change",
+            function () {
+
+                updateBrandFromContract();
+            }
+        );
+    }
+
+
+    prevBtn.addEventListener(
+        "click",
+        function () {
+
+            if (currentStep > 1) {
+
+                currentStep -= 1;
+
+                showStep(
+                    currentStep
+                );
+            }
+        }
+    );
+
+
+    if (
+        customerSelect
+        && customerSelect.value
+    ) {
+        loadCustomerOptions().then(
+            updateBrandFromContract
+        );
+    }    
+
+    showStep(
+        currentStep
+    );
+
 });
 </script>
+
 {% endblock %}
