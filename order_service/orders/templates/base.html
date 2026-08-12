@@ -1,15 +1,19 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Service</title>
+    <title>{{ brand_title }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{% static 'orders/css/base.css' %}">
+    <link rel="stylesheet" href="{% static brand_theme_css %}">
     <style>
         body {
-            background: #f7f7f7;
-            font-family: Arial, sans-serif;
+            background: var(--brand-bg);
+            color: var(--brand-text);
+            font-family: var(--brand-font);
         }
 
         .dashboard-page {
@@ -19,7 +23,7 @@
         }
 
         .dashboard-header {
-            background: #fff;
+            background: var(--brand-surface);
             border-radius: 24px;
             padding: 32px;
             margin-bottom: 32px;
@@ -36,7 +40,7 @@
             width: 64px;
             height: 64px;
             border-radius: 50%;
-            background: #f1f1f1;
+            background: var(--brand-control-bg, #f1f1f1);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -49,7 +53,7 @@
         }
 
         .user-subtitle {
-            color: #777;
+            color: var(--brand-muted);
             margin-top: 6px;
         }
 
@@ -60,53 +64,53 @@
         }
 
         .dashboard-card {
-            background: #fff;
+            background: var(--brand-surface);
             border-radius: 24px;
             padding: 36px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.06);
         }
 
         .section-title {
-            color: #c81446;
+            color: var(--brand-primary);
             font-size: 28px;
             font-weight: 700;
             margin-bottom: 24px;
         }
 
         .section-title span {
-            color: #111;
+            color: var(--brand-text);
             font-weight: 400;
         }
 
         .menu-link {
             display: block;
-            color: #222;
+            color: var(--brand-text);
             font-size: 20px;
             text-decoration: none;
             margin-bottom: 18px;
         }
 
         .menu-link:hover {
-            color: #c81446;
+            color: var(--brand-primary);
         }
 
         .logout-block {
             margin-top: 32px;
-            background: #fff;
+            background: var(--brand-surface);
             border-radius: 24px;
             padding: 28px 36px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.06);
         }
 
         .logout-link {
-            color: #111;
+            color: var(--brand-text);
             font-weight: 700;
             font-size: 20px;
             text-decoration: none;
         }
 
         .logout-link:hover {
-            color: #c81446;
+            color: var(--brand-primary);
         }
 
         @media (max-width: 768px) {
@@ -126,7 +130,7 @@
                 box-shadow: none;
                 border-radius: 0;
                 padding: 28px 0;
-                border-bottom: 1px solid #ddd;
+                border-bottom: 1px solid var(--brand-border);
                 background: transparent;
             }
 
@@ -166,11 +170,11 @@
             align-items: center;
             gap: 12px;
 
-            background: #f4f4f4;
+            background: var(--brand-control-bg, #f4f4f4);
             border-radius: 20px;
             padding: 14px 18px;
 
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--brand-border);
         }
 
         .search-box input {
@@ -185,12 +189,12 @@
         .menu-icon,
         .search-icon {
             font-size: 20px;
-            color: #555;
+            color: var(--brand-muted);
         }
 
         .create-order-btn {
-            background: #c81446;
-            color: white;
+            background: var(--brand-primary);
+            color: var(--brand-on-primary);
 
             padding: 14px 24px;
 
@@ -202,8 +206,8 @@
         }
 
         .create-order-btn:hover {
-            background: #a90f3a;
-            color: white;
+            background: var(--brand-primary-hover);
+            color: var(--brand-on-primary);
         }
 
         /* =========================================
@@ -211,7 +215,7 @@
         ========================================= */
 
         .orders-header {
-            border-bottom: 1px solid #d9d9d9;
+            border-bottom: 1px solid var(--brand-border);
             margin-bottom: 32px;
         }
 
@@ -225,17 +229,17 @@
             margin-top: 10px;
             margin-bottom: 20px;
 
-            color: #777;
+            color: var(--brand-muted);
             font-size: 14px;
         }
 
         .breadcrumbs a {
-            color: #777;
+            color: var(--brand-muted);
             text-decoration: none;
         }
 
         .breadcrumbs a:hover {
-            color: #c81446;
+            color: var(--brand-primary);
         }
 
         .breadcrumbs span {
@@ -257,9 +261,9 @@
         ========================================= */
 
         .order-card {
-            background: #fafafa;
+            background: var(--brand-surface-soft, #fafafa);
 
-            border: 1px solid #d8d8d8;
+            border: 1px solid var(--brand-border);
             border-radius: 20px;
 
             padding: 20px 28px;
@@ -287,14 +291,14 @@
             gap: 20px;
 
             font-size: 13px;
-            color: #666;
+            color: var(--brand-muted);
 
             padding-bottom: 10px;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid var(--brand-border);
         } */
 
         .order-number {
-            color: #c81446;
+            color: var(--brand-primary);
             font-weight: 700;
         }
 
@@ -315,7 +319,7 @@
             padding-bottom: 12px;
             margin-bottom: 12px;
 
-            border-bottom: 1px solid #dcdcdc;
+            border-bottom: 1px solid var(--brand-border);
         }
         .order-card-body {
             display: grid;
@@ -346,7 +350,7 @@
         }
 
         .status-new {
-            background: #c81446;
+            background: var(--brand-primary);
         }
 
         .status-paid {
@@ -460,8 +464,8 @@
             align-items: center;
             gap: 8px;
 
-            background: #f7f7f7;
-            border: 1px solid #ddd;
+            background: var(--brand-bg);
+            border: 1px solid var(--brand-border);
             border-radius: 18px;
 
             padding: 10px 16px;
@@ -469,8 +473,8 @@
         }
 
         .order-info-card {
-            background: #fafafa;
-            border: 1px solid #d8d8d8;
+            background: var(--brand-surface-soft, #fafafa);
+            border: 1px solid var(--brand-border);
             border-radius: 22px;
 
             padding: 24px 28px;
@@ -483,32 +487,32 @@
 
         .order-info-item span {
             display: block;
-            color: #777;
+            color: var(--brand-muted);
             font-size: 13px;
             margin-bottom: 8px;
         }
 
         .order-info-item strong {
             display: block;
-            color: #111;
+            color: var(--brand-text);
             font-size: 15px;
             font-weight: 600;
         }
 
         .order-info-total strong {
-            color: #c81446;
+            color: var(--brand-primary);
             font-size: 18px;
         }
 
         .order-comment {
-            background: #fff;
-            border-left: 4px solid #c81446;
+            background: var(--brand-surface);
+            border-left: 4px solid var(--brand-primary);
             border-radius: 12px;
 
             padding: 16px 20px;
             margin-bottom: 32px;
 
-            color: #444;
+            color: var(--brand-text-secondary, #444);
         }
 
         .order-comment strong {
@@ -530,13 +534,13 @@
         }
 
         .products-header span {
-            color: #777;
+            color: var(--brand-muted);
             font-size: 14px;
         }
 
         .products-table-wrap {
-            background: #fafafa;
-            border: 1px solid #d8d8d8;
+            background: var(--brand-surface-soft, #fafafa);
+            border: 1px solid var(--brand-border);
             border-radius: 22px;
 
             padding: 20px;
@@ -549,10 +553,10 @@
         }
 
         .products-table th {
-            color: #777;
+            color: var(--brand-muted);
             font-size: 13px;
             font-weight: 500;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid var(--brand-border);
         }
 
         .products-table td {
@@ -562,11 +566,11 @@
 
         .product-name {
             font-weight: 600;
-            color: #222;
+            color: var(--brand-text);
         }
 
         .product-article {
-            color: #777;
+            color: var(--brand-muted);
             font-size: 12px;
             margin-top: 4px;
         }
@@ -577,7 +581,7 @@
 
         .empty-products {
             text-align: center;
-            color: #777;
+            color: var(--brand-muted);
             padding: 32px;
         }
         .order-status-block {
@@ -595,11 +599,11 @@
 
             font-size: 14px;
             font-weight: 600;
-            color: #222;
+            color: var(--brand-text);
         }
 
         .order-status-title i {
-            color: #c81446;
+            color: var(--brand-primary);
             font-size: 18px;
         }
 
@@ -612,7 +616,7 @@
         .order-status-progress span {
             height: 6px;
             border-radius: 999px;
-            background: #e2e2e2;
+            background: var(--brand-step-bg, #e2e2e2);
         }
 
         .status-step-1 span:nth-child(-n+1),
@@ -620,12 +624,12 @@
         .status-step-3 span:nth-child(-n+3),
         .status-step-4 span:nth-child(-n+4),
         .status-step-5 span:nth-child(-n+5) {
-            background: #c81446;
+            background: var(--brand-primary);
         }
         .order-detail-status {
             min-width: 220px;
-            background: #fff;
-            border: 1px solid #ddd;
+            background: var(--brand-surface);
+            border: 1px solid var(--brand-border);
             border-radius: 18px;
             padding: 14px 18px;
         }
@@ -678,8 +682,8 @@
             }
 
             .mobile-product-card {
-                background: #fff;
-                border: 1px solid #e0e0e0;
+                background: var(--brand-surface);
+                border: 1px solid var(--brand-border);
                 border-radius: 16px;
                 padding: 14px;
             }
@@ -692,7 +696,7 @@
 
             .mobile-product-card .product-article {
                 font-size: 12px;
-                color: #777;
+                color: var(--brand-muted);
                 margin-bottom: 6px;
             }
 
@@ -709,7 +713,7 @@
             .product-details-row:first-child {
                 padding-bottom: 12px;
                 margin-bottom: 12px;
-                border-bottom: 1px solid #e6e3e3;
+                border-bottom: 1px solid var(--brand-border-soft, #e6e3e3);
             }
 
             .product-details-item {
@@ -718,7 +722,7 @@
                 align-items: center;
             }
             .product-details-item span {
-                color: #777;
+                color: var(--brand-muted);
                 font-size: 12px;
                 font-weight: 400;
                 }
@@ -744,7 +748,7 @@
                 margin-top: 8px;
                 padding-top: 8px;
 
-                border-top: 1px solid #e5e5e5;
+                border-top: 1px solid var(--brand-border-soft, #e5e5e5);
 
                 width: 100%;
                 min-width: 0;
@@ -805,8 +809,8 @@
             width: 34px;
             height: 34px;
             border-radius: 50%;
-            background: #e5e5e5;
-            color: #777;
+            background: var(--brand-step-bg, #e5e5e5);
+            color: var(--brand-muted);
 
             display: flex;
             align-items: center;
@@ -816,8 +820,8 @@
         }
 
         .create-step-indicator span.active {
-            background: #c81446;
-            color: #fff;
+            background: var(--brand-primary);
+            color: var(--brand-on-primary);
         }
 
         .order-create-layout {
@@ -828,8 +832,8 @@
 
         .order-create-main,
         .order-cart-summary {
-            background: #fff;
-            border: 1px solid #d8d8d8;
+            background: var(--brand-surface);
+            border: 1px solid var(--brand-border);
             border-radius: 24px;
             padding: 28px;
         }
@@ -864,7 +868,7 @@
         }
 
         .form-field label {
-            color: #777;
+            color: var(--brand-muted);
             font-size: 14px;
         }
 
@@ -873,7 +877,7 @@
         .form-field textarea,
         .product-search-row input,
         .product-select-table input {
-            border: 1px solid #ddd;
+            border: 1px solid var(--brand-border);
             border-radius: 14px;
             padding: 12px 14px;
             font-size: 15px;
@@ -892,8 +896,8 @@
 
         .primary-btn,
         .small-btn {
-            background: #c81446;
-            color: #fff;
+            background: var(--brand-primary);
+            color: var(--brand-on-primary);
             border: none;
             border-radius: 16px;
             padding: 12px 20px;
@@ -902,8 +906,8 @@
         }
 
         .secondary-btn {
-            background: #f3f3f3;
-            color: #222;
+            background: var(--brand-control-bg, #f3f3f3);
+            color: var(--brand-text);
             border: none;
             border-radius: 16px;
             padding: 12px 20px;
@@ -923,10 +927,10 @@
         }
 
         .promo-card {
-            border: 1px solid #ddd;
+            border: 1px solid var(--brand-border);
             border-radius: 18px;
             padding: 20px;
-            background: #fafafa;
+            background: var(--brand-surface-soft, #fafafa);
         }
 
         .promo-card h3 {
@@ -935,7 +939,7 @@
         }
 
         .promo-card p {
-            color: #666;
+            color: var(--brand-muted);
         }
 
         .promo-actions {
@@ -951,14 +955,14 @@
         }
 
         .confirm-card div {
-            background: #fafafa;
+            background: var(--brand-surface-soft, #fafafa);
             border-radius: 16px;
             padding: 18px;
         }
 
         .confirm-card span {
             display: block;
-            color: #777;
+            color: var(--brand-muted);
             font-size: 13px;
             margin-bottom: 8px;
         }
@@ -992,7 +996,7 @@
             display: flex;
             justify-content: space-between;
             padding: 12px 0;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--brand-border-soft, #eee);
         }
 
         .cart-summary-total {
@@ -1002,7 +1006,7 @@
         }
 
         .cart-summary-total strong {
-            color: #c81446;
+            color: var(--brand-primary);
         }
 
         @media (max-width: 900px) {
@@ -1031,6 +1035,8 @@
             }
         }
     </style>
+
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
     <div class="container">

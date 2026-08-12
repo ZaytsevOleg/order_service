@@ -1,0 +1,43 @@
+:root {
+    --brand-primary: #111111;
+    --brand-primary-hover: #333333;
+
+    --brand-text: #171717;
+    --brand-muted: #777777;
+
+    --brand-bg: #ffffff;
+    --brand-surface: #ffffff;
+    --brand-border: #d9d9d9;
+
+    --brand-on-primary: #ffffff;
+
+    --brand-font: Arial, sans-serif;
+}
+
+body {
+    font-family: var(--brand-font);
+    color: var(--brand-text);
+    background: var(--brand-bg);
+}
+
+.primary-btn {
+    background: var(--brand-primary);
+    color: var(--brand-on-primary);
+}
+
+.primary-btn:hover {
+    background: var(--brand-primary-hover);
+}
+
+.create-step-indicator span.active {
+    background: var(--brand-primary);
+    color: #fff;
+}
+
+.cart-summary-total strong {
+    color: var(--brand-primary);
+}
+
+a {
+    color: var(--brand-primary);
+}

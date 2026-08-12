@@ -1,0 +1,11 @@
+:root {
+    --brand-primary: #cf0a45;
+    --brand-primary-hover: #b6093d;
+    --brand-text: #171717;
+    --brand-muted: #777777;
+    --brand-bg: #f7f7f7;
+    --brand-surface: #ffffff;
+    --brand-border: #dddddd;
+    --brand-on-primary: #ffffff;
+    --brand-font: Arial, sans-serif;
+}
