@@ -1,5 +1,9 @@
 {% extends "base.html" %}
+{% load static %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'orders/order_create.css' %}">
+{% endblock %}
 {% block content %}
 <div class="order-create-page">
 
@@ -128,35 +132,44 @@
 
                 <section
                     class="order-step"
-                    data-step="2"
-                >
-                    <h2>Товары</h2>
+                    data-step="2">
+                    <div class="order-step-heading">
+                        <div>
+                            <h2>Товары</h2>
+                            <p class="order-step-description">
+                                Выберите товары и укажите необходимое количество.
+                            </p>
+                        </div>
+                    </div>
 
                     <div class="product-search-row">
-                        <input
-                            type="text"
-                            id="productSearch"
-                            placeholder="Поиск товара по названию или артикулу"
-                        >
+                        <div class="product-search-box">
+                            <i class="bi bi-search"></i>
+
+                            <input
+                                type="text"
+                                id="productSearch"
+                                placeholder="Название или артикул товара"
+                                autocomplete="off">
+                        </div>
 
                         <button
                             type="button"
-                            id="productSearchButton"
-                        >
+                            class="secondary-btn"
+                            id="productSearchButton">
                             Найти
                         </button>
                     </div>
 
                     <div
                         class="product-cards"
-                        id="productCards"
-                    >
+                        id="productCards">
                         <div class="product-empty-state">
                             Выберите клиента и договор,
                             чтобы загрузить товары.
                         </div>
                     </div>
-                </section>                
+                </section>
 
 
                 <!-- ================================================= -->
@@ -701,11 +714,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 ? productSearch.value.trim()
                 : "";
 
-                productCards.innerHTML = `
-                    <div class="product-empty-state">
-                        Загрузка товаров...
-                    </div>
-                `;
+        productCards.innerHTML = `
+            <div class="product-empty-state">
+                Загрузка товаров...
+            </div>
+        `;
 
         try {
 
@@ -738,7 +751,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 await response.json();
 
             if (!response.ok) {
-
                 throw new Error(
                     data.error
                     || `HTTP ${response.status}`
@@ -756,14 +768,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 error
             );
 
-            productTableBody.innerHTML = `
-                <tr>
-                    <td colspan="5">
-                        ${escapeHtml(
-                            error.message
-                        )}
-                    </td>
-                </tr>
+            productCards.innerHTML = `
+                <div class="product-empty-state product-error-state">
+                    ${escapeHtml(
+                        error.message
+                    )}
+                </div>
             `;
         }
     }
@@ -801,7 +811,7 @@ function renderProducts(products) {
                 "product-card";
 
             card.innerHTML = `
-                <div class="product-card-main">
+                <div class="product-card-content">
 
                     <div class="product-card-info">
 
@@ -811,17 +821,14 @@ function renderProducts(products) {
                             )}
                         </div>
 
-                        <div class="product-card-meta">
-
-                            <span>
-                                Артикул:
-                                <strong>
-                                    ${escapeHtml(
-                                        product.article
-                                    )}
-                                </strong>
-                            </span>
-
+                        <div class="product-card-article">
+                            Артикул:
+                            <strong>
+                                ${escapeHtml(
+                                    product.article
+                                    || "—"
+                                )}
+                            </strong>
                         </div>
 
                     </div>
@@ -848,13 +855,35 @@ function renderProducts(products) {
                             Количество
                         </span>
 
-                        <input
-                            type="number"
-                            class="product-quantity"
-                            value="0"
-                            min="0"
-                            step="1"
-                        >
+                        <div class="quantity-control">
+
+                            <button
+                                type="button"
+                                class="quantity-button quantity-minus"
+                                disabled
+                                aria-label="Уменьшить количество"
+                            >
+                                −
+                            </button>
+
+                            <input
+                                type="number"
+                                class="product-quantity"
+                                value="0"
+                                min="0"
+                                step="1"
+                                inputmode="numeric"
+                            >
+
+                            <button
+                                type="button"
+                                class="quantity-button quantity-plus"
+                                aria-label="Увеличить количество"
+                            >
+                                +
+                            </button>
+
+                        </div>
 
                     </div>
 
@@ -863,7 +892,7 @@ function renderProducts(products) {
 
                         <button
                             type="button"
-                            class="small-btn add-product-btn"
+                            class="primary-btn add-product-btn"
                             disabled
                         >
                             Добавить
@@ -875,7 +904,7 @@ function renderProducts(products) {
             `;
 
 
-            const button =
+            const addButton =
                 card.querySelector(
                     ".add-product-btn"
                 );
@@ -885,45 +914,155 @@ function renderProducts(products) {
                     ".product-quantity"
                 );
 
+            const minusButton =
+                card.querySelector(
+                    ".quantity-minus"
+                );
 
-            function updateButtonState() {
+            const plusButton =
+                card.querySelector(
+                    ".quantity-plus"
+                );
 
-                const quantity =
+
+            function getQuantity() {
+
+                const value =
                     Number(
                         quantityInput.value
                     );
 
-                button.disabled = !(
-                    Number.isFinite(quantity)
-                    && quantity > 0
-                );
+                if (
+                    !Number.isFinite(value)
+                    || value < 0
+                ) {
+                    return 0;
+                }
+
+                return Math.floor(value);
+            }
+
+
+            function setQuantity(value) {
+
+                const quantity =
+                    Math.max(
+                        0,
+                        Math.floor(
+                            Number(value) || 0
+                        )
+                    );
+
+                quantityInput.value =
+                    String(quantity);
+
+                updateControls();
+            }
+
+
+            function updateControls() {
+
+                const quantity =
+                    getQuantity();
+
+                addButton.disabled =
+                    quantity <= 0;
+
+                minusButton.disabled =
+                    quantity <= 0;
             }
 
 
             quantityInput.addEventListener(
                 "input",
-                updateButtonState
-            );
-
-
-            button.addEventListener(
-                "click",
                 function () {
 
-                    addProductToCart(
-                        product,
-                        quantityInput.value
-                    );
+                    const quantity =
+                        getQuantity();
 
-                    quantityInput.value = "0";
+                    if (
+                        quantityInput.value !== ""
+                        && quantity < 0
+                    ) {
+                        quantityInput.value = "0";
+                    }
 
-                    updateButtonState();
+                    updateControls();
                 }
             );
 
 
-            updateButtonState();
+            quantityInput.addEventListener(
+                "blur",
+                function () {
 
+                    setQuantity(
+                        getQuantity()
+                    );
+                }
+            );
+
+
+            minusButton.addEventListener(
+                "click",
+                function () {
+
+                    setQuantity(
+                        getQuantity() - 1
+                    );
+                }
+            );
+
+
+            plusButton.addEventListener(
+                "click",
+                function () {
+
+                    setQuantity(
+                        getQuantity() + 1
+                    );
+                }
+            );
+
+
+            addButton.addEventListener(
+                "click",
+                function () {
+
+                    const quantity =
+                        getQuantity();
+
+                    if (quantity <= 0) {
+                        return;
+                    }
+
+                    addProductToCart(
+                        product,
+                        quantity
+                    );
+
+                    setQuantity(0);
+
+                    const originalText =
+                        addButton.textContent;
+
+                    addButton.textContent =
+                        "Добавлено";
+
+                    setTimeout(
+                        function () {
+
+                            addButton.textContent =
+                                originalText;
+
+                        },
+                        900
+                    );
+                }
+            );
+
+
+            updateControls();
 
             productCards.appendChild(
                 card
@@ -1193,55 +1332,6 @@ function renderProducts(products) {
                 
     }
 
-
-    function showStep(step) {
-
-        steps.forEach(function (element) {
-
-            element.classList.toggle(
-                "active",
-                Number(
-                    element.dataset.step
-                ) === step
-            );
-
-        });
-
-
-        indicators.forEach(
-            function (element, index) {
-
-                element.classList.toggle(
-                    "active",
-                    index + 1 <= step
-                );
-
-            }
-        );
-
-
-        prevBtn.style.display =
-            step === 1
-                ? "none"
-                : "inline-flex";
-
-
-        nextBtn.classList.toggle(
-            "d-none",
-            step === 5
-        );
-
-
-        submitBtn.classList.toggle(
-            "d-none",
-            step !== 5
-        );
-
-
-        if (step === 5) {
-            updateConfirmation();
-        }
-    }
 
 
     nextBtn.addEventListener(
