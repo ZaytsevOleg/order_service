@@ -1033,11 +1033,106 @@
                 flex-direction: column;
             }
         }
+
+        
+        .brand-header {
+            width: 100%;
+            background: var(--brand-header-bg, #ffffff);
+            border-bottom: 1px solid var(--brand-border);
+        }
+
+        .brand-header-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 18px 24px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            min-height: 76px;
+        }
+
+        .brand-header-logo {
+            display: flex;
+            align-items: center;
+
+            text-decoration: none;
+            color: var(--brand-text);
+        }
+
+        .brand-header-logo img {
+            display: block;
+            max-width: 170px;
+            max-height: 46px;
+            object-fit: contain;
+        }
+
+        .brand-header-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            color: var(--brand-text);
+            font-size: 14px;
+        }
+
+        .brand-header-user i {
+            font-size: 26px;
+        }
+
+        @media (max-width: 768px) {
+
+            .brand-header-inner {
+                min-height: 64px;
+                padding: 12px 18px;
+            }
+
+            .brand-header-logo img {
+                max-width: 125px;
+                max-height: 38px;
+            }
+
+            .brand-header-user span {
+                display: none;
+            }
+        }
     </style>
 
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <header class="brand-header">
+    <div class="brand-header-inner">
+
+        <a
+            href="{% url 'home' %}"
+            class="brand-header-logo"
+        >
+            {% if brand_logo %}
+                <img
+                    src="{% static brand_logo %}"
+                    alt="{{ brand_title }}"
+                >
+            {% else %}
+                <span>
+                    {{ brand_title }}
+                </span>
+            {% endif %}
+        </a>
+
+        {% if user.is_authenticated %}
+            <div class="brand-header-user">
+                <span>
+                    {{ user.get_full_name|default:user.username }}
+                </span>
+
+                <i class="bi bi-person-circle"></i>
+            </div>
+        {% endif %}
+
+    </div>
+</header>
     <div class="container">
         {% block content %}
         {% endblock %}

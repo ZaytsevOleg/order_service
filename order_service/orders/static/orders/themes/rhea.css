@@ -1,17 +1,43 @@
+@font-face {
+    font-family: "Rhea Futura";
+    src: url("../fonts/rhea/FuturaFuturisC.ttf")
+        format("truetype");
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Rhea Futura";
+    src: url("../fonts/rhea/FuturaFuturisC-Bold.ttf")
+        format("truetype");
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+}
+
 :root {
     --brand-primary: #111111;
     --brand-primary-hover: #333333;
+    --brand-on-primary: #ffffff;
 
-    --brand-text: #171717;
-    --brand-muted: #777777;
+    --brand-text: #111111;
+    --brand-text-secondary: #333333;
+    --brand-muted: #6d6d6d;
 
     --brand-bg: #ffffff;
     --brand-surface: #ffffff;
-    --brand-border: #d9d9d9;
+    --brand-surface-soft: #fafafa;
 
-    --brand-on-primary: #ffffff;
+    --brand-border: #d6d6d6;
+    --brand-border-soft: #e7e7e7;
 
-    --brand-font: Arial, sans-serif;
+    --brand-control-bg: #f3f3f3;
+    --brand-step-bg: #e8e8e8;
+
+    --brand-header-bg: #ffffff;
+
+    --brand-font: "Rhea Futura", Arial, sans-serif;
 }
 
 body {
