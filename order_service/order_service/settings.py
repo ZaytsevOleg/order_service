@@ -79,6 +79,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'catalog.middleware.BrandContextMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -184,3 +185,45 @@ MEDIA_ROOT = BASE_DIR / "media"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Раделяем по брендам
+
+BRAND_GUINOT_ID = (
+    "e3154c7c-4423-11e9-8120-a21e6608e067"
+)
+
+BRAND_RHEA_ID = (
+    "e3154c7d-4423-11e9-8120-a21e6608e067"
+)
+
+
+BRAND_SITES = {
+    os.getenv(
+        "GUINOT_DOMAIN",
+        "guinot.local",
+    ).lower(): {
+        "code": "guinot",
+        "brand_id": BRAND_GUINOT_ID,
+        "title": "Guinot",
+        "theme": "guinot",
+    },
+
+    os.getenv(
+        "RHEA_DOMAIN",
+        "rhea.local",
+    ).lower(): {
+        "code": "rhea",
+        "brand_id": BRAND_RHEA_ID,
+        "title": "Rhea Cosmetics",
+        "theme": "rhea",
+    },
+}
+
+
+# Для текущей разработки через inter-oleg04.
+# Позже в production можно убрать.
+DEFAULT_BRAND_ID = os.getenv(
+    "DEFAULT_BRAND_ID",
+    BRAND_GUINOT_ID,
+)

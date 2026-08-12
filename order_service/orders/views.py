@@ -57,6 +57,7 @@ def order_list(request):
         Order.objects
         .filter(
             customer_id__in=allowed_legal_entities,
+            contract__brand=request.brand.brand_id,
         )
         .select_related(
             "customer",
@@ -106,6 +107,7 @@ def order_detail(request, order_id):
         ),
         pk=order_id,
         customer_id__in=allowed_legal_entities,
+        contract__brand=request.brand.brand_id,
     )
 
     return render(
@@ -128,6 +130,7 @@ def order_create(request):
         form = OrderCreateForm(
             request.POST,
             user=request.user,
+            brand=request.brand,
         )
 
         if form.is_valid():
@@ -157,6 +160,7 @@ def order_create(request):
     else:
         form = OrderCreateForm(
             user=request.user,
+            brand=request.brand,
         )
 
     return render(
@@ -193,6 +197,7 @@ def customer_options(request, customer_id):
         Contract.objects
         .filter(
             legal_entity_id=customer_id,
+            brand=request.brand.brand_id,
             is_active=True,
         )
         .order_by(
@@ -313,6 +318,7 @@ def customer_products(request, customer_id):
         .filter(
             pk=contract_id,
             legal_entity_id=customer_id,
+            brand=request.brand.brand_id,
             is_active=True,
         )
         .first()

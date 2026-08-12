@@ -1,0 +1,33 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools-items %}
+
+    {% if original %}
+
+        <li>
+            <a href="#contracts-group">
+                + Добавить договор
+            </a>
+        </li>
+
+        <li>
+            <a href="#delivery_addresses-group">
+                + Добавить адрес
+            </a>
+        </li>
+
+        <li>
+            <a href="#"
+               onclick="
+                   alert('Загрузка из 1С будет добавлена позже.');
+                   return false;
+               ">
+                Загрузить из 1С
+            </a>
+        </li>
+
+    {% endif %}
+
+    {{ block.super }}
+
+{% endblock %}

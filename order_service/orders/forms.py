@@ -30,10 +30,11 @@ class OrderCreateForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, user=None, **kwargs):
+    def __init__(self, *args, user=None, brand=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.user = user
+        self.brand = brand
 
         self.fields["customer"].queryset = (
             self.fields["customer"]
@@ -85,15 +86,32 @@ class OrderCreateForm(forms.ModelForm):
             )
         )
 
+        if brand:
+            self.fields["customer"].queryset = (
+                self.fields["customer"]
+                .queryset
+                .filter(
+                    contracts__brand=brand.brand_id,
+                    contracts__is_active=True,
+                )
+                .distinct()
+            )
+
         if customer_id:
+            contract_filters = {
+                "legal_entity_id": customer_id,
+                "is_active": True,
+            }
+
+            if brand:
+                contract_filters["brand"] = (
+                    brand.brand_id
+                )
+
             self.fields["contract"].queryset = (
                 Contract.objects
-                .filter(
-                    legal_entity_id=customer_id,
-                    is_active=True,
-                )
+                .filter(**contract_filters)
                 .order_by(
-                    "brand",
                     "contract_name",
                 )
             )

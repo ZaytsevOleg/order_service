@@ -147,41 +147,16 @@
                         </button>
                     </div>
 
-
-                    <div class="product-table-wrap">
-                        <table class="table product-select-table">
-
-                            <thead>
-                                <tr>
-                                    <th>Товар</th>
-                                    <th>Артикул</th>
-                                    <th>Цена</th>
-                                    <th>Кол-во</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-
-                            <tbody id="productTableBody">
-
-                                <!--
-                                Реальные товары подключим следующим
-                                этапом через PostgreSQL + AJAX.
-
-                                Пока таблица оставлена пустой.
-                                -->
-
-                                <tr id="emptyProductRow">
-                                    <td colspan="5">
-                                        Выберите клиента и договор,
-                                        чтобы загрузить товары.
-                                    </td>
-                                </tr>
-
-                            </tbody>
-                        </table>
+                    <div
+                        class="product-cards"
+                        id="productCards"
+                    >
+                        <div class="product-empty-state">
+                            Выберите клиента и договор,
+                            чтобы загрузить товары.
+                        </div>
                     </div>
-
-                </section>
+                </section>                
 
 
                 <!-- ================================================= -->
@@ -540,9 +515,9 @@ document.addEventListener("DOMContentLoaded", function () {
         "brandDisplay"
     );
 
-    const productTableBody =
+    const productCards =
         document.getElementById(
-            "productTableBody"
+            "productCards"
         );
 
     const productSearch =
@@ -696,7 +671,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (
             !customerSelect
             || !contractSelect
-            || !productTableBody
+            || !productCards
         ) {
             return;
         }
@@ -711,13 +686,11 @@ document.addEventListener("DOMContentLoaded", function () {
             !customerId
             || !contractId
         ) {
-            productTableBody.innerHTML = `
-                <tr>
-                    <td colspan="5">
-                        Выберите клиента и договор,
-                        чтобы загрузить товары.
-                    </td>
-                </tr>
+            productCards.innerHTML = `
+                <div class="product-empty-state">
+                    Выберите клиента и договор,
+                    чтобы загрузить товары.
+                </div>
             `;
 
             return;
@@ -728,13 +701,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 ? productSearch.value.trim()
                 : "";
 
-        productTableBody.innerHTML = `
-            <tr>
-                <td colspan="5">
-                    Загрузка товаров...
-                </td>
-            </tr>
-        `;
+                productCards.innerHTML = `
+                    <div class="product-empty-state">
+                        Загрузка товаров...
+                    </div>
+                `;
 
         try {
 
@@ -798,135 +769,168 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
 
-    function renderProducts(products) {
+function renderProducts(products) {
 
-        if (!productTableBody) {
-            return;
-        }
+    if (!productCards) {
+        return;
+    }
 
-        productTableBody.innerHTML = "";
+    productCards.innerHTML = "";
 
-        if (!products.length) {
+    if (!products.length) {
 
-            productTableBody.innerHTML = `
-                <tr>
-                    <td colspan="5">
-                        Товары с доступной ценой
-                        не найдены.
-                    </td>
-                </tr>
-            `;
+        productCards.innerHTML = `
+            <div class="product-empty-state">
+                Товары с доступной ценой
+                не найдены.
+            </div>
+        `;
 
-            return;
-        }
+        return;
+    }
 
-        products.forEach(
-            function (product) {
+    products.forEach(
+        function (product) {
 
-                const row =
-                    document.createElement(
-                        "tr"
-                    );
+            const card =
+                document.createElement(
+                    "div"
+                );
 
-                const hasDiscount =
-                    Number(
-                        product.discount_percent
-                    ) > 0;
+            card.className =
+                "product-card";
 
-                let priceHtml =
-                    formatMoney(
-                        product.final_price
-                    );
+            card.innerHTML = `
+                <div class="product-card-main">
 
-                if (hasDiscount) {
+                    <div class="product-card-info">
 
-                    priceHtml = `
-                        <div>
-                            <strong>
-                                ${formatMoney(
-                                    product.final_price
-                                )}
-                            </strong>
-                        </div>
-
-                        <div class="product-old-price">
-                            ${formatMoney(
-                                product.base_price
+                        <div class="product-card-name">
+                            ${escapeHtml(
+                                product.name
                             )}
                         </div>
 
-                        <div class="product-discount">
-                            −${escapeHtml(
-                                product.discount_percent
-                            )}%
+                        <div class="product-card-meta">
+
+                            <span>
+                                Артикул:
+                                <strong>
+                                    ${escapeHtml(
+                                        product.article
+                                    )}
+                                </strong>
+                            </span>
+
                         </div>
-                    `;
-                }
 
-                row.innerHTML = `
-                    <td>
-                        ${escapeHtml(
-                            product.name
-                        )}
-                    </td>
+                    </div>
 
-                    <td>
-                        ${escapeHtml(
-                            product.article
-                        )}
-                    </td>
 
-                    <td>
-                        ${priceHtml}
-                    </td>
+                    <div class="product-card-price">
 
-                    <td>
+                        <span class="product-card-label">
+                            Цена
+                        </span>
+
+                        <strong>
+                            ${formatMoney(
+                                product.final_price
+                            )}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="product-card-quantity">
+
+                        <span class="product-card-label">
+                            Количество
+                        </span>
+
                         <input
                             type="number"
                             class="product-quantity"
-                            value="1"
-                            min="1"
+                            value="0"
+                            min="0"
                             step="1"
                         >
-                    </td>
 
-                    <td>
+                    </div>
+
+
+                    <div class="product-card-action">
+
                         <button
                             type="button"
                             class="small-btn add-product-btn"
+                            disabled
                         >
                             Добавить
                         </button>
-                    </td>
-                `;
 
-                const button =
-                    row.querySelector(
-                        ".add-product-btn"
-                    );
+                    </div>
 
-                const quantityInput =
-                    row.querySelector(
-                        ".product-quantity"
-                    );
+                </div>
+            `;
 
-                button.addEventListener(
-                    "click",
-                    function () {
 
-                        addProductToCart(
-                            product,
-                            quantityInput.value
-                        );
-                    }
+            const button =
+                card.querySelector(
+                    ".add-product-btn"
                 );
 
-                productTableBody.appendChild(
-                    row
+            const quantityInput =
+                card.querySelector(
+                    ".product-quantity"
+                );
+
+
+            function updateButtonState() {
+
+                const quantity =
+                    Number(
+                        quantityInput.value
+                    );
+
+                button.disabled = !(
+                    Number.isFinite(quantity)
+                    && quantity > 0
                 );
             }
-        );
-    }
+
+
+            quantityInput.addEventListener(
+                "input",
+                updateButtonState
+            );
+
+
+            button.addEventListener(
+                "click",
+                function () {
+
+                    addProductToCart(
+                        product,
+                        quantityInput.value
+                    );
+
+                    quantityInput.value = "0";
+
+                    updateButtonState();
+                }
+            );
+
+
+            updateButtonState();
+
+
+            productCards.appendChild(
+                card
+            );
+        }
+    );
+}
 
 
     function addProductToCart(
