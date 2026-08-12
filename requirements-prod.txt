@@ -6,3 +6,4 @@ pyodbc==5.2.0
 pymongo==3.11.4
 requests==2.32.3
 gunicorn==23.0.0
+whitenoise==6.8.2
