@@ -448,27 +448,46 @@
 
         <aside class="order-cart-summary">
 
-            <h3>Корзина</h3>
+            <div class="cart-header">
+                <h3>Корзина</h3>
 
-            <div class="cart-summary-row">
-                <span>Позиций</span>
-                <strong id="cartItemsCount">
+                <span
+                    class="cart-position-badge"
+                    id="cartItemsCount"
+                >
                     0
-                </strong>
+                </span>
             </div>
 
-            <div class="cart-summary-row">
-                <span>Сумма</span>
-                <strong id="cartSubtotal">
-                    0,00 руб
-                </strong>
+
+            <div
+                class="cart-items"
+                id="cartItems"
+            >
+                <div class="cart-empty">
+                    В корзине пока нет товаров
+                </div>
             </div>
 
-            <div class="cart-summary-total">
-                <span>Итого</span>
-                <strong id="cartTotal">
-                    0,00 руб
-                </strong>
+
+            <div class="cart-footer">
+
+                <div class="cart-summary-row">
+                    <span>Сумма</span>
+
+                    <strong id="cartSubtotal">
+                        0,00 руб
+                    </strong>
+                </div>
+
+                <div class="cart-summary-total">
+                    <span>Итого</span>
+
+                    <strong id="cartTotal">
+                        0,00 руб
+                    </strong>
+                </div>
+
             </div>
 
         </aside>
@@ -561,6 +580,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const confirmItemsCount =
         document.getElementById(
             "confirmItemsCount"
+        );
+
+    const cartItems =
+        document.getElementById(
+            "cartItems"
         );
 
     const confirmAmount =
@@ -1155,30 +1179,276 @@ function renderProducts(products) {
             }
         );
 
+
         if (cartItemsCount) {
             cartItemsCount.textContent =
                 positions;
         }
+
 
         if (cartSubtotal) {
             cartSubtotal.textContent =
                 formatMoney(total);
         }
 
+
         if (cartTotal) {
             cartTotal.textContent =
                 formatMoney(total);
         }
+
 
         if (confirmItemsCount) {
             confirmItemsCount.textContent =
                 positions;
         }
 
+
         if (confirmAmount) {
             confirmAmount.textContent =
                 formatMoney(total);
         }
+
+
+        renderCartItems();
+    }
+
+
+    function renderCartItems() {
+
+        if (!cartItems) {
+            return;
+        }
+
+
+        cartItems.innerHTML = "";
+
+
+        if (cart.size === 0) {
+
+            cartItems.innerHTML = `
+                <div class="cart-empty">
+                    В корзине пока нет товаров
+                </div>
+            `;
+
+            return;
+        }
+
+
+        cart.forEach(
+            function (item, productId) {
+
+                const element =
+                    document.createElement(
+                        "div"
+                    );
+
+                element.className =
+                    "cart-item";
+
+
+                element.innerHTML = `
+                    <div class="cart-item-main">
+
+                        <div class="cart-item-name">
+                            ${escapeHtml(
+                                item.name
+                            )}
+                        </div>
+
+                        <div class="cart-item-article">
+                            ${escapeHtml(
+                                item.article || ""
+                            )}
+                        </div>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        class="cart-item-remove"
+                        title="Удалить"
+                    >
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+
+
+                    <div class="cart-item-bottom">
+
+                        <div class="cart-item-quantity">
+
+                            <button
+                                type="button"
+                                class="cart-quantity-minus"
+                            >
+                                −
+                            </button>
+
+                            <input
+                                type="number"
+                                class="cart-quantity-input"
+                                value="${item.quantity}"
+                                min="1"
+                                step="1"
+                            >
+
+                            <button
+                                type="button"
+                                class="cart-quantity-plus"
+                            >
+                                +
+                            </button>
+
+                        </div>
+
+
+                        <div class="cart-item-price">
+
+                            <span>
+                                ${formatMoney(
+                                    item.price
+                                )}
+                            </span>
+
+                            <strong>
+                                ${formatMoney(
+                                    item.price
+                                    * item.quantity
+                                )}
+                            </strong>
+
+                        </div>
+
+                    </div>
+                `;
+
+
+                const removeButton =
+                    element.querySelector(
+                        ".cart-item-remove"
+                    );
+
+                const minusButton =
+                    element.querySelector(
+                        ".cart-quantity-minus"
+                    );
+
+                const plusButton =
+                    element.querySelector(
+                        ".cart-quantity-plus"
+                    );
+
+                const quantityInput =
+                    element.querySelector(
+                        ".cart-quantity-input"
+                    );
+
+
+                removeButton.addEventListener(
+                    "click",
+                    function () {
+
+                        cart.delete(
+                            productId
+                        );
+
+                        updateCartSummary();
+                    }
+                );
+
+
+                minusButton.addEventListener(
+                    "click",
+                    function () {
+
+                        const current =
+                            cart.get(
+                                productId
+                            );
+
+                        if (!current) {
+                            return;
+                        }
+
+                        if (
+                            current.quantity <= 1
+                        ) {
+                            cart.delete(
+                                productId
+                            );
+                        } else {
+                            current.quantity -= 1;
+                        }
+
+                        updateCartSummary();
+                    }
+                );
+
+
+                plusButton.addEventListener(
+                    "click",
+                    function () {
+
+                        const current =
+                            cart.get(
+                                productId
+                            );
+
+                        if (!current) {
+                            return;
+                        }
+
+                        current.quantity += 1;
+
+                        updateCartSummary();
+                    }
+                );
+
+
+                quantityInput.addEventListener(
+                    "change",
+                    function () {
+
+                        const current =
+                            cart.get(
+                                productId
+                            );
+
+                        if (!current) {
+                            return;
+                        }
+
+                        const value =
+                            Math.floor(
+                                Number(
+                                    quantityInput.value
+                                )
+                            );
+
+                        if (
+                            !Number.isFinite(value)
+                            || value <= 0
+                        ) {
+                            cart.delete(
+                                productId
+                            );
+                        } else {
+                            current.quantity =
+                                value;
+                        }
+
+                        updateCartSummary();
+                    }
+                );
+
+
+                cartItems.appendChild(
+                    element
+                );
+            }
+        );
     }
 
 
