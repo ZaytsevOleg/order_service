@@ -19,6 +19,7 @@ from catalog.models import (
 from sales.models import Order
 
 from .forms import OrderCreateForm
+from catalog.models import CurrencyRate
 
 
 STATUS_ICONS = {
@@ -393,13 +394,50 @@ def customer_products(request, customer_id):
 
     hundred = Decimal("100.00")
 
+    from django.utils import timezone
+
+    today = timezone.localdate()
+
+    currency_rate_row = (
+        CurrencyRate.objects
+        .filter(
+            currency_code="YE",
+            valid_from__lte=today,
+        )
+        .order_by(
+            "-valid_from",
+            "-id",
+        )
+        .first()
+    )
+
+    if currency_rate_row is None:
+        return JsonResponse(
+            {
+                "error": (
+                    "Не найден действующий курс валюты YE."
+                ),
+            },
+            status=500,
+        )
+
+    currency_rate = currency_rate_row.rate
+
     products = []
 
     for price_row in prices:
-        base_price = price_row.price
+        base_price_ye = price_row.price
 
-        final_price = (
-            base_price
+        base_price_rub = (
+            base_price_ye
+            * currency_rate
+        ).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+
+        final_price_rub = (
+            base_price_rub
             * (
                 hundred
                 - discount_percent
@@ -415,25 +453,69 @@ def customer_products(request, customer_id):
         products.append(
             {
                 "product_id": str(product.pk),
-                "article": product.article or "",
-                "name": product.name or "",
-                "name_translation": (
-                    product.name_translation or ""
+
+                "article": (
+                    product.article
+                    or ""
                 ),
 
-                "category": product.category or "",
-                "subcategory": product.subcategory or "",
-                "level_2": product.level_2 or "",
-                "level_3": product.level_3 or "",
-                "level_4": product.level_4 or "",
+                "name": (
+                    product.name
+                    or ""
+                ),
+
+                "name_translation": (
+                    product.name_translation
+                    or ""
+                ),
+
+                "category": (
+                    product.category
+                    or ""
+                ),
+
+                "subcategory": (
+                    product.subcategory
+                    or ""
+                ),
+
+                "level_2": (
+                    product.level_2
+                    or ""
+                ),
+
+                "level_3": (
+                    product.level_3
+                    or ""
+                ),
+
+                "level_4": (
+                    product.level_4
+                    or ""
+                ),
 
                 "brand_id": contract.brand,
-                "base_price": str(base_price),
+
+                "price_currency": "YE",
+
+                "base_price_ye": str(
+                    base_price_ye
+                ),
+
+                "currency_rate": str(
+                    currency_rate
+                ),
+
+                "base_price": str(
+                    base_price_rub
+                ),
+
                 "discount_percent": str(
                     discount_percent
                 ),
+
                 "final_price": str(
-                    final_price
+                    final_price_rub
                 ),
             }
         )
@@ -442,17 +524,31 @@ def customer_products(request, customer_id):
         {
             "customer_id": str(customer_id),
             "contract_id": str(contract.pk),
+
             "brand_id": contract.brand,
             "brand_name": (
                 contract.get_brand_display()
             ),
+
             "price_type": {
                 "id": access.price_type_id,
                 "name": access.price_type.name,
             },
+
+            "currency": {
+                "code": "YE",
+                "rate": str(currency_rate),
+                "valid_from": (
+                    currency_rate_row
+                    .valid_from
+                    .isoformat()
+                ),
+            },
+
             "discount_percent": str(
                 discount_percent
             ),
+
             "count": len(products),
             "products": products,
         }
