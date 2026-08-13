@@ -415,32 +415,23 @@ def customer_products(request, customer_id):
         products.append(
             {
                 "product_id": str(product.pk),
-
-                "article": (
-                    product.article
-                    or ""
-                ),
-
-                "name": (
-                    product.name
-                    or ""
-                ),
-
+                "article": product.article or "",
+                "name": product.name or "",
                 "name_translation": (
-                    product.name_translation
-                    or ""
+                    product.name_translation or ""
                 ),
+
+                "category": product.category or "",
+                "subcategory": product.subcategory or "",
+                "level_2": product.level_2 or "",
+                "level_3": product.level_3 or "",
+                "level_4": product.level_4 or "",
 
                 "brand_id": contract.brand,
-
-                "base_price": str(
-                    base_price
-                ),
-
+                "base_price": str(base_price),
                 "discount_percent": str(
                     discount_percent
                 ),
-
                 "final_price": str(
                     final_price
                 ),
