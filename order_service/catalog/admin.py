@@ -11,6 +11,7 @@ from .models import (
     Product,
     Price,
     PromoAction,
+    CurrencyRate,
 )
 
 
@@ -382,4 +383,30 @@ class PromoActionAdmin(admin.ModelAdmin):
 
     autocomplete_fields = (
         "brand",
+    )
+
+@admin.register(CurrencyRate)
+class CurrencyRateAdmin(admin.ModelAdmin):
+    list_display = (
+        "currency_code",
+        "rate",
+        "valid_from",
+        "created_at",
+    )
+
+    list_filter = (
+        "currency_code",
+    )
+
+    search_fields = (
+        "currency_code",
+    )
+
+    ordering = (
+        "-valid_from",
+        "-id",
+    )
+
+    readonly_fields = (
+        "created_at",
     )

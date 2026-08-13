@@ -470,6 +470,56 @@ class Price(models.Model):
         return f"{self.product.name} — {self.price_type.name}: {self.price}"
 
 
+class CurrencyRate(models.Model):
+    currency_code = models.CharField(
+        max_length=10,
+        default="YE",
+        db_index=True,
+        verbose_name="Валюта",
+    )
+
+    rate = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        verbose_name="Курс к рублю",
+    )
+
+    valid_from = models.DateField(
+        db_index=True,
+        verbose_name="Действует с",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Создан",
+    )
+
+    class Meta:
+        verbose_name = "Курс валюты"
+        verbose_name_plural = "Курсы валют"
+        ordering = (
+            "-valid_from",
+            "-id",
+        )
+        constraints = [
+            models.UniqueConstraint(
+                fields=(
+                    "currency_code",
+                    "valid_from",
+                ),
+                name=(
+                    "unique_currency_rate_date"
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.currency_code}: "
+            f"{self.rate} "
+            f"с {self.valid_from:%d.%m.%Y}"
+        )
+
 class PromoAction(models.Model):
     promo_id = models.CharField(max_length=255, primary_key=True)
     name = models.CharField(max_length=500)
