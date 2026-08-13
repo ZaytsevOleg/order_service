@@ -825,73 +825,258 @@ function renderProducts(products) {
 
 
     // =====================================================
-    // Группируем товары:
-    //
-    // category
-    //     └── subcategory
-    //             └── products
+    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
     // =====================================================
 
-    const groupedProducts = new Map();
+    /*
+     * Извлекает число в начале level_2 / level_3.
+     *
+     * Примеры:
+     *
+     * "01 Розничная линия" -> 1
+     * "02. Профессиональная линия" -> 2
+     * "10 Очищение" -> 10
+     *
+     * Если числа нет — группа уйдёт в конец.
+     */
+    function getHierarchyOrder(value) {
+
+        if (!value) {
+            return Number.MAX_SAFE_INTEGER;
+        }
+
+        const match =
+            String(value)
+                .trim()
+                .match(/^(\d+)/);
+
+        if (!match) {
+            return Number.MAX_SAFE_INTEGER;
+        }
+
+        return Number(
+            match[1]
+        );
+    }
+
+
+    /*
+     * Дополнительная функция на случай,
+     * если category/subcategory пустые.
+     *
+     * Из:
+     * "01. Розничная линия"
+     *
+     * получаем:
+     * "Розничная линия"
+     */
+    function cleanHierarchyName(value) {
+
+        if (!value) {
+            return "";
+        }
+
+        return String(value)
+            .replace(
+                /^\s*\d+\s*[.\-_:)]*\s*/,
+                ""
+            )
+            .trim();
+    }
+
+
+    // =====================================================
+    // ГРУППИРУЕМ
+    //
+    // category
+    //     order: level_2
+    //
+    //     subcategory
+    //         order: level_3
+    //
+    //         products
+    // =====================================================
+
+    const groupedProducts =
+        new Map();
 
 
     products.forEach(
         function (product) {
 
-            const category =
+            const categorySource =
+                product.level_2
+                || "";
+
+            const subcategorySource =
+                product.level_3
+                || "";
+
+
+            const categoryName =
                 product.category
+                || cleanHierarchyName(
+                    categorySource
+                )
                 || "Прочее";
 
-            const subcategory =
+
+            const subcategoryName =
                 product.subcategory
+                || cleanHierarchyName(
+                    subcategorySource
+                )
                 || "Прочее";
 
+
+            const categoryOrder =
+                getHierarchyOrder(
+                    categorySource
+                );
+
+
+            const subcategoryOrder =
+                getHierarchyOrder(
+                    subcategorySource
+                );
+
+
+            // ---------------------------------------------
+            // Категория
+            // ---------------------------------------------
 
             if (
                 !groupedProducts.has(
-                    category
+                    categoryName
                 )
             ) {
+
                 groupedProducts.set(
-                    category,
-                    new Map()
+                    categoryName,
+                    {
+                        order:
+                            categoryOrder,
+
+                        subcategories:
+                            new Map(),
+                    }
                 );
             }
 
 
             const categoryGroup =
                 groupedProducts.get(
-                    category
+                    categoryName
                 );
 
+
+            /*
+             * Если по какой-либо причине у одного и того же
+             * category встречается разный level_2,
+             * оставляем минимальный порядковый номер.
+             */
+            categoryGroup.order =
+                Math.min(
+                    categoryGroup.order,
+                    categoryOrder
+                );
+
+
+            // ---------------------------------------------
+            // Подкатегория
+            // ---------------------------------------------
 
             if (
-                !categoryGroup.has(
-                    subcategory
-                )
+                !categoryGroup
+                    .subcategories
+                    .has(
+                        subcategoryName
+                    )
             ) {
-                categoryGroup.set(
-                    subcategory,
-                    []
-                );
+
+                categoryGroup
+                    .subcategories
+                    .set(
+                        subcategoryName,
+                        {
+                            order:
+                                subcategoryOrder,
+
+                            products:
+                                [],
+                        }
+                    );
             }
 
 
-            categoryGroup
-                .get(subcategory)
-                .push(product);
+            const subcategoryGroup =
+                categoryGroup
+                    .subcategories
+                    .get(
+                        subcategoryName
+                    );
+
+
+            subcategoryGroup.order =
+                Math.min(
+                    subcategoryGroup.order,
+                    subcategoryOrder
+                );
+
+
+            subcategoryGroup
+                .products
+                .push(
+                    product
+                );
         }
     );
 
 
     // =====================================================
-    // Рисуем крупные категории
+    // СОРТИРУЕМ КАТЕГОРИИ
     // =====================================================
 
-    groupedProducts.forEach(
+    const sortedCategories =
+        Array.from(
+            groupedProducts.entries()
+        )
+        .sort(
+            function (a, b) {
+
+                const orderDifference =
+                    a[1].order
+                    - b[1].order;
+
+                if (
+                    orderDifference !== 0
+                ) {
+                    return orderDifference;
+                }
+
+                /*
+                 * На случай одинакового номера
+                 * делаем стабильную сортировку
+                 * по отображаемому имени.
+                 */
+                return a[0].localeCompare(
+                    b[0],
+                    "ru"
+                );
+            }
+        );
+
+
+    // =====================================================
+    // РИСУЕМ КАТЕГОРИИ
+    // =====================================================
+
+    sortedCategories.forEach(
         function (
-            subcategories,
-            categoryName
+            [
+                categoryName,
+                categoryData
+            ]
         ) {
 
             const categoryBlock =
@@ -903,16 +1088,66 @@ function renderProducts(products) {
                 "product-category";
 
 
-            let categoryProductsCount = 0;
+            // ---------------------------------------------
+            // Сортируем подкатегории
+            // ---------------------------------------------
 
-            subcategories.forEach(
-                function (categoryProducts) {
+            const sortedSubcategories =
+                Array.from(
+                    categoryData
+                        .subcategories
+                        .entries()
+                )
+                .sort(
+                    function (a, b) {
 
-                    categoryProductsCount +=
-                        categoryProducts.length;
-                }
-            );
+                        const orderDifference =
+                            a[1].order
+                            - b[1].order;
 
+                        if (
+                            orderDifference !== 0
+                        ) {
+                            return orderDifference;
+                        }
+
+                        return a[0]
+                            .localeCompare(
+                                b[0],
+                                "ru"
+                            );
+                    }
+                );
+
+
+            // ---------------------------------------------
+            // Количество товаров в категории
+            // ---------------------------------------------
+
+            const categoryProductsCount =
+                sortedSubcategories
+                    .reduce(
+                        function (
+                            total,
+                            entry
+                        ) {
+
+                            return (
+                                total
+                                + entry[1]
+                                    .products
+                                    .length
+                            );
+                        },
+                        0
+                    );
+
+
+            // ---------------------------------------------
+            // Header категории
+            //
+            // Он у тебя уже sticky через CSS.
+            // ---------------------------------------------
 
             categoryBlock.innerHTML = `
                 <div class="product-category-header">
@@ -940,15 +1175,21 @@ function renderProducts(products) {
                 );
 
 
-            // =============================================
-            // Рисуем подкатегории
-            // =============================================
+            // =================================================
+            // РИСУЕМ ПОДКАТЕГОРИИ
+            // =================================================
 
-            subcategories.forEach(
+            sortedSubcategories.forEach(
                 function (
-                    categoryProducts,
-                    subcategoryName
+                    [
+                        subcategoryName,
+                        subcategoryData
+                    ]
                 ) {
+
+                    const categoryProducts =
+                        subcategoryData.products;
+
 
                     const subcategoryBlock =
                         document.createElement(
@@ -986,9 +1227,9 @@ function renderProducts(products) {
                             );
 
 
-                    // =====================================
-                    // Рисуем товары подкатегории
-                    // =====================================
+                    // =============================================
+                    // ТОВАРЫ
+                    // =============================================
 
                     categoryProducts.forEach(
                         function (product) {
@@ -1020,6 +1261,7 @@ function renderProducts(products) {
                                         <div class="product-card-name">
                                             ${escapeHtml(
                                                 product.name
+                                                || ""
                                             )}
                                         </div>
 
@@ -1108,6 +1350,10 @@ function renderProducts(products) {
                             `;
 
 
+                            // =====================================
+                            // ELEMENTS
+                            // =====================================
+
                             const addButton =
                                 card.querySelector(
                                     ".add-product-btn"
@@ -1129,15 +1375,22 @@ function renderProducts(products) {
                                 );
 
 
+                            // =====================================
+                            // QUANTITY HELPERS
+                            // =====================================
+
                             function getQuantity() {
 
                                 const value =
                                     Number(
-                                        quantityInput.value
+                                        quantityInput
+                                            .value
                                     );
 
                                 if (
-                                    !Number.isFinite(value)
+                                    !Number.isFinite(
+                                        value
+                                    )
                                     || value < 0
                                 ) {
                                     return 0;
@@ -1157,7 +1410,9 @@ function renderProducts(products) {
                                     Math.max(
                                         0,
                                         Math.floor(
-                                            Number(value)
+                                            Number(
+                                                value
+                                            )
                                             || 0
                                         )
                                     );
@@ -1184,151 +1439,163 @@ function renderProducts(products) {
                             }
 
 
-                            quantityInput.addEventListener(
-                                "input",
-                                function () {
+                            // =====================================
+                            // INPUT
+                            // =====================================
 
-                                    const rawValue =
-                                        Number(
-                                            quantityInput.value
+                            quantityInput
+                                .addEventListener(
+                                    "input",
+                                    function () {
+
+                                        const rawValue =
+                                            Number(
+                                                quantityInput
+                                                    .value
+                                            );
+
+                                        if (
+                                            quantityInput
+                                                .value !== ""
+                                            && (
+                                                !Number
+                                                    .isFinite(
+                                                        rawValue
+                                                    )
+                                                || rawValue < 0
+                                            )
+                                        ) {
+                                            quantityInput
+                                                .value = "0";
+                                        }
+
+                                        updateControls();
+                                    }
+                                );
+
+
+                            quantityInput
+                                .addEventListener(
+                                    "blur",
+                                    function () {
+
+                                        setQuantity(
+                                            getQuantity()
+                                        );
+                                    }
+                                );
+
+
+                            // =====================================
+                            // MINUS
+                            // =====================================
+
+                            minusButton
+                                .addEventListener(
+                                    "click",
+                                    function () {
+
+                                        setQuantity(
+                                            getQuantity()
+                                            - 1
+                                        );
+                                    }
+                                );
+
+
+                            // =====================================
+                            // PLUS
+                            // =====================================
+
+                            plusButton
+                                .addEventListener(
+                                    "click",
+                                    function () {
+
+                                        setQuantity(
+                                            getQuantity()
+                                            + 1
+                                        );
+                                    }
+                                );
+
+
+                            // =====================================
+                            // ADD TO CART
+                            // =====================================
+
+                            addButton
+                                .addEventListener(
+                                    "click",
+                                    function () {
+
+                                        const quantity =
+                                            getQuantity();
+
+                                        if (
+                                            quantity <= 0
+                                        ) {
+                                            return;
+                                        }
+
+
+                                        addProductToCart(
+                                            product,
+                                            quantity
                                         );
 
-                                    if (
-                                        quantityInput.value !== ""
-                                        && (
-                                            !Number.isFinite(
-                                                rawValue
-                                            )
-                                            || rawValue < 0
-                                        )
-                                    ) {
-                                        quantityInput.value =
-                                            "0";
+
+                                        setQuantity(0);
+
+
+                                        const originalText =
+                                            addButton
+                                                .textContent;
+
+
+                                        addButton.textContent =
+                                            "Добавлено";
+
+
+                                        setTimeout(
+                                            function () {
+
+                                                addButton
+                                                    .textContent =
+                                                    originalText;
+
+                                            },
+                                            900
+                                        );
                                     }
-
-                                    updateControls();
-                                }
-                            );
-
-
-                            quantityInput.addEventListener(
-                                "blur",
-                                function () {
-
-                                    setQuantity(
-                                        getQuantity()
-                                    );
-                                }
-                            );
-
-
-                            minusButton.addEventListener(
-                                "click",
-                                function () {
-
-                                    setQuantity(
-                                        getQuantity()
-                                        - 1
-                                    );
-                                }
-                            );
-
-
-                            plusButton.addEventListener(
-                                "click",
-                                function () {
-
-                                    setQuantity(
-                                        getQuantity()
-                                        + 1
-                                    );
-                                }
-                            );
-
-
-                            addButton.addEventListener(
-                                "click",
-                                function () {
-
-                                    const quantity =
-                                        getQuantity();
-
-                                    if (
-                                        quantity <= 0
-                                    ) {
-                                        return;
-                                    }
-
-
-                                    addProductToCart(
-                                        product,
-                                        quantity
-                                    );
-
-
-                                    setQuantity(0);
-
-
-                                    const originalText =
-                                        addButton.textContent;
-
-
-                                    addButton.textContent =
-                                        "Добавлено";
-
-
-                                    setTimeout(
-                                        function () {
-
-                                            addButton.textContent =
-                                                originalText;
-
-                                        },
-                                        900
-                                    );
-                                }
-                            );
+                                );
 
 
                             updateControls();
 
 
-                            productsContainer.appendChild(
-                                card
-                            );
+                            productsContainer
+                                .appendChild(
+                                    card
+                                );
                         }
                     );
 
 
-                    categoryContent.appendChild(
-                        subcategoryBlock
-                    );
+                    categoryContent
+                        .appendChild(
+                            subcategoryBlock
+                        );
                 }
             );
 
 
-            productCards.appendChild(
-                categoryBlock
-            );
+            productCards
+                .appendChild(
+                    categoryBlock
+                );
         }
     );
-}
-
-function createProductCard(product) {
-
-    const card =
-        document.createElement(
-            "div"
-        );
-
-    card.className =
-        "product-card";
-
-    // сюда переносим весь твой текущий
-    // card.innerHTML + обработчики
-    // quantity / add / + / -
-
-    return card;
 }
 
     function addProductToCart(
