@@ -1,96 +1,218 @@
+/* =========================================================
+   GUINOT THEME
+   ========================================================= */
+
+
+/* ---------------------------------------------------------
+   Fonts
+   --------------------------------------------------------- */
+
 @font-face {
-    font-family: "Guinot Helvetica";
+    font-family: "GuinotHelvetica";
     src: url("../fonts/guinot/helveticaneuecyr_roman.otf")
-        format("opentype");
-    font-style: normal;
+         format("opentype");
     font-weight: 400;
+    font-style: normal;
     font-display: swap;
 }
 
 @font-face {
-    font-family: "Guinot Helvetica";
+    font-family: "GuinotHelvetica";
     src: url("../fonts/guinot/helveticaneuecyr_black.otf")
-        format("opentype");
+         format("opentype");
+    font-weight: 700;
     font-style: normal;
-    font-weight: 800;
     font-display: swap;
 }
 
-@font-face {
-    font-family: "Guinot Helvetica";
-    src: url("../fonts/guinot/helveticaneuecyr_thin.otf")
-        format("opentype");
-    font-style: normal;
-    font-weight: 200;
-    font-display: swap;
-}
 
-@font-face {
-    font-family: "Guinot Helvetica";
-    src: url("../fonts/guinot/helveticaneuecyr_ultralight.otf")
-        format("opentype");
-    font-style: normal;
-    font-weight: 100;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Guinot Helvetica";
-    src: url("../fonts/guinot/helveticaneuecyr_ultralightitalic.otf")
-        format("opentype");
-    font-style: italic;
-    font-weight: 100;
-    font-display: swap;
-}
+/* ---------------------------------------------------------
+   Brand variables
+   --------------------------------------------------------- */
 
 :root {
-    --brand-primary: #cf0a45;
-    --brand-primary-hover: #b8083d;
+    --brand-primary: #d50046;
     --brand-on-primary: #ffffff;
 
     --brand-text: #151515;
-    --brand-text-secondary: #444444;
-    --brand-muted: #777777;
+    --brand-muted: #747474;
 
-    --brand-bg: #f7f7f7;
+    --brand-background: #f7f7f7;
     --brand-surface: #ffffff;
     --brand-surface-soft: #fafafa;
 
     --brand-border: #dddddd;
-    --brand-border-soft: #eeeeee;
-
     --brand-control-bg: #f4f4f4;
-    --brand-step-bg: #e5e5e5;
 
-    --brand-header-bg: #ffffff;
-
-    --brand-font: "Guinot Helvetica", Arial, sans-serif;
+    --brand-font:
+        "GuinotHelvetica",
+        Arial,
+        Helvetica,
+        sans-serif;
 }
 
+
+/* ---------------------------------------------------------
+   Base typography
+   --------------------------------------------------------- */
+
+html,
 body {
     font-family: var(--brand-font);
-    color: var(--brand-text);
-    background: var(--brand-bg);
+    font-weight: 400;
 }
 
-.primary-btn {
-    background: var(--brand-primary);
-    color: var(--brand-on-primary);
+body,
+input,
+select,
+textarea,
+button {
+    font-family: var(--brand-font);
 }
 
-.primary-btn:hover {
-    background: var(--brand-primary-hover);
+
+/* ---------------------------------------------------------
+   Headings
+   Guinot должен выглядеть легче, чем Rhea.
+   --------------------------------------------------------- */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.page-title,
+.order-section-title,
+.order-cart-summary h3 {
+    font-family: var(--brand-font);
+    font-weight: 400;
 }
 
-.create-step-indicator span.active {
-    background: var(--brand-primary);
-    color: #fff;
+
+/* ---------------------------------------------------------
+   Product cards
+   --------------------------------------------------------- */
+
+.product-name {
+    font-weight: 400;
+}
+
+.product-article {
+    font-weight: 400;
+}
+
+.product-label {
+    font-weight: 400;
+}
+
+.product-price {
+    font-weight: 400;
+}
+
+
+/* ---------------------------------------------------------
+   Cart
+   --------------------------------------------------------- */
+
+.cart-item-name {
+    font-weight: 400;
+}
+
+.cart-item-article {
+    font-weight: 400;
+}
+
+.cart-item-price span {
+    font-weight: 400;
+}
+
+.cart-item-price strong {
+    font-weight: 400;
+}
+
+.cart-summary-row {
+    font-weight: 400;
+}
+
+.cart-summary-row strong {
+    font-weight: 400;
+}
+
+.cart-summary-total {
+    font-weight: 400;
 }
 
 .cart-summary-total strong {
-    color: var(--brand-primary);
+    font-weight: 400;
 }
 
-a {
-    color: var(--brand-primary);
+
+/* ---------------------------------------------------------
+   Forms
+   --------------------------------------------------------- */
+
+.form-label,
+label {
+    font-weight: 400;
+}
+
+input,
+select,
+textarea {
+    font-weight: 400;
+}
+
+
+/* ---------------------------------------------------------
+   Quantity controls
+   --------------------------------------------------------- */
+
+.quantity-input,
+.cart-quantity-input {
+    font-weight: 400;
+}
+
+.quantity-control button,
+.cart-item-quantity button {
+    font-weight: 400;
+}
+
+
+/* ---------------------------------------------------------
+   Buttons
+
+   Кнопки оставляем чуть более акцентными, но специально
+   НЕ используем 700, потому что для него загрузится
+   HelveticaNeueCyr Black.
+   --------------------------------------------------------- */
+
+button,
+.btn {
+    font-weight: 600;
+}
+
+
+/* ---------------------------------------------------------
+   Breadcrumbs
+   --------------------------------------------------------- */
+
+.breadcrumbs,
+.breadcrumbs a {
+    font-weight: 400;
+}
+
+
+/* ---------------------------------------------------------
+   Step indicator
+   --------------------------------------------------------- */
+
+.order-step,
+.step {
+    font-weight: 400;
+}
+
+.order-step.active,
+.step.active {
+    font-weight: 600;
 }
