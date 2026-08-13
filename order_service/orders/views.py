@@ -378,6 +378,9 @@ def customer_products(request, customer_id):
             | Q(
                 product__article__icontains=search
             )
+            | Q(
+                product__article__icontains=search
+            )        
         )
 
     # На первом этапе не отдаём браузеру тысячи строк.
@@ -411,16 +414,33 @@ def customer_products(request, customer_id):
 
         products.append(
             {
-                "product_id": (
-                    str(product.pk)
+                "product_id": str(product.pk),
+
+                "article": (
+                    product.article
+                    or ""
                 ),
-                "name": product.name,
-                "article": product.article or "",
+
+                "name": (
+                    product.name
+                    or ""
+                ),
+
+                "name_translation": (
+                    product.name_translation
+                    or ""
+                ),
+
                 "brand_id": contract.brand,
-                "base_price": str(base_price),
+
+                "base_price": str(
+                    base_price
+                ),
+
                 "discount_percent": str(
                     discount_percent
                 ),
+
                 "final_price": str(
                     final_price
                 ),

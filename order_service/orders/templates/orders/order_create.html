@@ -839,12 +839,6 @@ function renderProducts(products) {
 
                     <div class="product-card-info">
 
-                        <div class="product-card-name">
-                            ${escapeHtml(
-                                product.name
-                            )}
-                        </div>
-
                         <div class="product-card-article">
                             Артикул:
                             <strong>
@@ -854,6 +848,26 @@ function renderProducts(products) {
                                 )}
                             </strong>
                         </div>
+
+                        <div class="product-card-name">
+                            ${escapeHtml(
+                                product.name
+                            )}
+                        </div>
+
+                        ${
+                            product.name_translation
+                                ? `
+                                    <div class="product-card-translation">
+                                        ${escapeHtml(
+                                            product.name_translation
+                                        )}
+                                    </div>
+                                `
+                                : ""
+                        }
+
+
 
                     </div>
 
