@@ -823,292 +823,513 @@ function renderProducts(products) {
         return;
     }
 
+
+    // =====================================================
+    // Группируем товары:
+    //
+    // category
+    //     └── subcategory
+    //             └── products
+    // =====================================================
+
+    const groupedProducts = new Map();
+
+
     products.forEach(
         function (product) {
 
-            const card =
-                document.createElement(
-                    "div"
+            const category =
+                product.category
+                || "Прочее";
+
+            const subcategory =
+                product.subcategory
+                || "Прочее";
+
+
+            if (
+                !groupedProducts.has(
+                    category
+                )
+            ) {
+                groupedProducts.set(
+                    category,
+                    new Map()
+                );
+            }
+
+
+            const categoryGroup =
+                groupedProducts.get(
+                    category
                 );
 
-            card.className =
-                "product-card";
 
-            card.innerHTML = `
-                <div class="product-card-content">
-
-                    <div class="product-card-info">
-
-                        <div class="product-card-article">
-                            Артикул:
-                            <strong>
-                                ${escapeHtml(
-                                    product.article
-                                    || "—"
-                                )}
-                            </strong>
-                        </div>
-
-                        <div class="product-card-name">
-                            ${escapeHtml(
-                                product.name
-                            )}
-                        </div>
-
-                        ${
-                            product.name_translation
-                                ? `
-                                    <div class="product-card-translation">
-                                        ${escapeHtml(
-                                            product.name_translation
-                                        )}
-                                    </div>
-                                `
-                                : ""
-                        }
+            if (
+                !categoryGroup.has(
+                    subcategory
+                )
+            ) {
+                categoryGroup.set(
+                    subcategory,
+                    []
+                );
+            }
 
 
-
-                    </div>
-
-
-                    <div class="product-card-price">
-
-                        <span class="product-card-label">
-                            Цена
-                        </span>
-
-                        <strong>
-                            ${formatMoney(
-                                product.final_price
-                            )}
-                        </strong>
-
-                    </div>
+            categoryGroup
+                .get(subcategory)
+                .push(product);
+        }
+    );
 
 
-                    <div class="product-card-quantity">
+    // =====================================================
+    // Рисуем крупные категории
+    // =====================================================
 
-                        <span class="product-card-label">
-                            Количество
-                        </span>
+    groupedProducts.forEach(
+        function (
+            subcategories,
+            categoryName
+        ) {
 
-                        <div class="quantity-control">
+            const categoryBlock =
+                document.createElement(
+                    "section"
+                );
 
-                            <button
-                                type="button"
-                                class="quantity-button quantity-minus"
-                                disabled
-                                aria-label="Уменьшить количество"
-                            >
-                                −
-                            </button>
-
-                            <input
-                                type="number"
-                                class="product-quantity"
-                                value="0"
-                                min="0"
-                                step="1"
-                                inputmode="numeric"
-                            >
-
-                            <button
-                                type="button"
-                                class="quantity-button quantity-plus"
-                                aria-label="Увеличить количество"
-                            >
-                                +
-                            </button>
-
-                        </div>
-
-                    </div>
+            categoryBlock.className =
+                "product-category";
 
 
-                    <div class="product-card-action">
+            let categoryProductsCount = 0;
 
-                        <button
-                            type="button"
-                            class="primary-btn add-product-btn"
-                            disabled
-                        >
-                            Добавить
-                        </button>
+            subcategories.forEach(
+                function (categoryProducts) {
 
-                    </div>
+                    categoryProductsCount +=
+                        categoryProducts.length;
+                }
+            );
 
+
+            categoryBlock.innerHTML = `
+                <div class="product-category-header">
+
+                    <h3 class="product-category-title">
+                        ${escapeHtml(
+                            categoryName
+                        )}
+                    </h3>
+
+                    <span class="product-category-count">
+                        ${categoryProductsCount}
+                    </span>
+
+                </div>
+
+                <div class="product-category-content">
                 </div>
             `;
 
 
-            const addButton =
-                card.querySelector(
-                    ".add-product-btn"
-                );
-
-            const quantityInput =
-                card.querySelector(
-                    ".product-quantity"
-                );
-
-            const minusButton =
-                card.querySelector(
-                    ".quantity-minus"
-                );
-
-            const plusButton =
-                card.querySelector(
-                    ".quantity-plus"
+            const categoryContent =
+                categoryBlock.querySelector(
+                    ".product-category-content"
                 );
 
 
-            function getQuantity() {
+            // =============================================
+            // Рисуем подкатегории
+            // =============================================
 
-                const value =
-                    Number(
-                        quantityInput.value
-                    );
-
-                if (
-                    !Number.isFinite(value)
-                    || value < 0
+            subcategories.forEach(
+                function (
+                    categoryProducts,
+                    subcategoryName
                 ) {
-                    return 0;
-                }
 
-                return Math.floor(value);
-            }
+                    const subcategoryBlock =
+                        document.createElement(
+                            "div"
+                        );
+
+                    subcategoryBlock.className =
+                        "product-subcategory";
 
 
-            function setQuantity(value) {
+                    subcategoryBlock.innerHTML = `
+                        <div class="product-subcategory-header">
 
-                const quantity =
-                    Math.max(
-                        0,
-                        Math.floor(
-                            Number(value) || 0
-                        )
+                            <h4 class="product-subcategory-title">
+                                ${escapeHtml(
+                                    subcategoryName
+                                )}
+                            </h4>
+
+                            <span class="product-subcategory-count">
+                                ${categoryProducts.length}
+                            </span>
+
+                        </div>
+
+                        <div class="product-subcategory-products">
+                        </div>
+                    `;
+
+
+                    const productsContainer =
+                        subcategoryBlock
+                            .querySelector(
+                                ".product-subcategory-products"
+                            );
+
+
+                    // =====================================
+                    // Рисуем товары подкатегории
+                    // =====================================
+
+                    categoryProducts.forEach(
+                        function (product) {
+
+                            const card =
+                                document.createElement(
+                                    "div"
+                                );
+
+                            card.className =
+                                "product-card";
+
+
+                            card.innerHTML = `
+                                <div class="product-card-content">
+
+                                    <div class="product-card-info">
+
+                                        <div class="product-card-article">
+                                            Артикул:
+                                            <strong>
+                                                ${escapeHtml(
+                                                    product.article
+                                                    || "—"
+                                                )}
+                                            </strong>
+                                        </div>
+
+                                        <div class="product-card-name">
+                                            ${escapeHtml(
+                                                product.name
+                                            )}
+                                        </div>
+
+                                        ${
+                                            product.name_translation
+                                                ? `
+                                                    <div class="product-card-translation">
+                                                        ${escapeHtml(
+                                                            product.name_translation
+                                                        )}
+                                                    </div>
+                                                `
+                                                : ""
+                                        }
+
+                                    </div>
+
+
+                                    <div class="product-card-price">
+
+                                        <span class="product-card-label">
+                                            Цена
+                                        </span>
+
+                                        <strong>
+                                            ${formatMoney(
+                                                product.final_price
+                                            )}
+                                        </strong>
+
+                                    </div>
+
+
+                                    <div class="product-card-quantity">
+
+                                        <span class="product-card-label">
+                                            Количество
+                                        </span>
+
+                                        <div class="quantity-control">
+
+                                            <button
+                                                type="button"
+                                                class="quantity-button quantity-minus"
+                                                disabled
+                                                aria-label="Уменьшить количество"
+                                            >
+                                                −
+                                            </button>
+
+                                            <input
+                                                type="number"
+                                                class="product-quantity"
+                                                value="0"
+                                                min="0"
+                                                step="1"
+                                                inputmode="numeric"
+                                            >
+
+                                            <button
+                                                type="button"
+                                                class="quantity-button quantity-plus"
+                                                aria-label="Увеличить количество"
+                                            >
+                                                +
+                                            </button>
+
+                                        </div>
+
+                                    </div>
+
+
+                                    <div class="product-card-action">
+
+                                        <button
+                                            type="button"
+                                            class="primary-btn add-product-btn"
+                                            disabled
+                                        >
+                                            Добавить
+                                        </button>
+
+                                    </div>
+
+                                </div>
+                            `;
+
+
+                            const addButton =
+                                card.querySelector(
+                                    ".add-product-btn"
+                                );
+
+                            const quantityInput =
+                                card.querySelector(
+                                    ".product-quantity"
+                                );
+
+                            const minusButton =
+                                card.querySelector(
+                                    ".quantity-minus"
+                                );
+
+                            const plusButton =
+                                card.querySelector(
+                                    ".quantity-plus"
+                                );
+
+
+                            function getQuantity() {
+
+                                const value =
+                                    Number(
+                                        quantityInput.value
+                                    );
+
+                                if (
+                                    !Number.isFinite(value)
+                                    || value < 0
+                                ) {
+                                    return 0;
+                                }
+
+                                return Math.floor(
+                                    value
+                                );
+                            }
+
+
+                            function setQuantity(
+                                value
+                            ) {
+
+                                const quantity =
+                                    Math.max(
+                                        0,
+                                        Math.floor(
+                                            Number(value)
+                                            || 0
+                                        )
+                                    );
+
+                                quantityInput.value =
+                                    String(
+                                        quantity
+                                    );
+
+                                updateControls();
+                            }
+
+
+                            function updateControls() {
+
+                                const quantity =
+                                    getQuantity();
+
+                                addButton.disabled =
+                                    quantity <= 0;
+
+                                minusButton.disabled =
+                                    quantity <= 0;
+                            }
+
+
+                            quantityInput.addEventListener(
+                                "input",
+                                function () {
+
+                                    const rawValue =
+                                        Number(
+                                            quantityInput.value
+                                        );
+
+                                    if (
+                                        quantityInput.value !== ""
+                                        && (
+                                            !Number.isFinite(
+                                                rawValue
+                                            )
+                                            || rawValue < 0
+                                        )
+                                    ) {
+                                        quantityInput.value =
+                                            "0";
+                                    }
+
+                                    updateControls();
+                                }
+                            );
+
+
+                            quantityInput.addEventListener(
+                                "blur",
+                                function () {
+
+                                    setQuantity(
+                                        getQuantity()
+                                    );
+                                }
+                            );
+
+
+                            minusButton.addEventListener(
+                                "click",
+                                function () {
+
+                                    setQuantity(
+                                        getQuantity()
+                                        - 1
+                                    );
+                                }
+                            );
+
+
+                            plusButton.addEventListener(
+                                "click",
+                                function () {
+
+                                    setQuantity(
+                                        getQuantity()
+                                        + 1
+                                    );
+                                }
+                            );
+
+
+                            addButton.addEventListener(
+                                "click",
+                                function () {
+
+                                    const quantity =
+                                        getQuantity();
+
+                                    if (
+                                        quantity <= 0
+                                    ) {
+                                        return;
+                                    }
+
+
+                                    addProductToCart(
+                                        product,
+                                        quantity
+                                    );
+
+
+                                    setQuantity(0);
+
+
+                                    const originalText =
+                                        addButton.textContent;
+
+
+                                    addButton.textContent =
+                                        "Добавлено";
+
+
+                                    setTimeout(
+                                        function () {
+
+                                            addButton.textContent =
+                                                originalText;
+
+                                        },
+                                        900
+                                    );
+                                }
+                            );
+
+
+                            updateControls();
+
+
+                            productsContainer.appendChild(
+                                card
+                            );
+                        }
                     );
 
-                quantityInput.value =
-                    String(quantity);
 
-                updateControls();
-            }
-
-
-            function updateControls() {
-
-                const quantity =
-                    getQuantity();
-
-                addButton.disabled =
-                    quantity <= 0;
-
-                minusButton.disabled =
-                    quantity <= 0;
-            }
-
-
-            quantityInput.addEventListener(
-                "input",
-                function () {
-
-                    const quantity =
-                        getQuantity();
-
-                    if (
-                        quantityInput.value !== ""
-                        && quantity < 0
-                    ) {
-                        quantityInput.value = "0";
-                    }
-
-                    updateControls();
+                    categoryContent.appendChild(
+                        subcategoryBlock
+                    );
                 }
             );
 
-
-            quantityInput.addEventListener(
-                "blur",
-                function () {
-
-                    setQuantity(
-                        getQuantity()
-                    );
-                }
-            );
-
-
-            minusButton.addEventListener(
-                "click",
-                function () {
-
-                    setQuantity(
-                        getQuantity() - 1
-                    );
-                }
-            );
-
-
-            plusButton.addEventListener(
-                "click",
-                function () {
-
-                    setQuantity(
-                        getQuantity() + 1
-                    );
-                }
-            );
-
-
-            addButton.addEventListener(
-                "click",
-                function () {
-
-                    const quantity =
-                        getQuantity();
-
-                    if (quantity <= 0) {
-                        return;
-                    }
-
-                    addProductToCart(
-                        product,
-                        quantity
-                    );
-
-                    setQuantity(0);
-
-                    const originalText =
-                        addButton.textContent;
-
-                    addButton.textContent =
-                        "Добавлено";
-
-                    setTimeout(
-                        function () {
-
-                            addButton.textContent =
-                                originalText;
-
-                        },
-                        900
-                    );
-                }
-            );
-
-
-            updateControls();
 
             productCards.appendChild(
-                card
+                categoryBlock
             );
         }
     );
 }
 
+function createProductCard(product) {
+
+    const card =
+        document.createElement(
+            "div"
+        );
+
+    card.className =
+        "product-card";
+
+    // сюда переносим весь твой текущий
+    // card.innerHTML + обработчики
+    // quantity / add / + / -
+
+    return card;
+}
 
     function addProductToCart(
         product,
