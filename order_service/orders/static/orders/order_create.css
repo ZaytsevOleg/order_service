@@ -587,6 +587,10 @@
 
 
 .product-category-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -594,11 +598,12 @@
     gap: 16px;
 
     margin-bottom: 20px;
-    padding-bottom: 10px;
+    padding: 12px 0 10px;
+
+    background: var(--brand-background);
 
     border-bottom: 1px solid var(--brand-border);
 }
-
 
 .product-category-title {
     margin: 0;
