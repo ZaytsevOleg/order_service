@@ -472,14 +472,6 @@
 
             <div class="cart-footer">
 
-                <div class="cart-summary-row">
-                    <span>Сумма</span>
-
-                    <strong id="cartSubtotal">
-                        0,00 руб
-                    </strong>
-                </div>
-
                 <div class="cart-summary-total">
                     <span>Итого</span>
 
@@ -1685,12 +1677,6 @@ function renderProducts(products) {
         if (cartItemsCount) {
             cartItemsCount.textContent =
                 positions;
-        }
-
-
-        if (cartSubtotal) {
-            cartSubtotal.textContent =
-                formatMoney(total);
         }
 
 
