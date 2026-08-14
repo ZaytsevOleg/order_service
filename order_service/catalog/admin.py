@@ -12,6 +12,8 @@ from .models import (
     Price,
     PromoAction,
     CurrencyRate,
+    Warehouse,
+    StockBalance,
 )
 
 
@@ -250,8 +252,10 @@ class LegalEntityAdmin(admin.ModelAdmin):
 class ContractAdmin(admin.ModelAdmin):
     list_display = (
         "contract_name",
+        "contract_id",
         "legal_entity",
         "brand",
+        "organization_id",
         "is_default",
         "is_active",
     )
@@ -409,4 +413,64 @@ class CurrencyRateAdmin(admin.ModelAdmin):
 
     readonly_fields = (
         "created_at",
+    )
+
+
+@admin.register(Warehouse)
+class WarehouseAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "warehouse_id",
+        "organization_id",
+        "is_active",
+    )
+
+    list_filter = (
+        "is_active",
+        "organization_id",
+    )
+
+    search_fields = (
+        "name",
+        "warehouse_id",
+        "organization_id",
+    )
+
+    ordering = (
+        "organization_id",
+        "name",
+    )
+
+
+@admin.register(StockBalance)
+class StockBalanceAdmin(admin.ModelAdmin):
+    list_display = (
+        "product",
+        "warehouse",
+        "quantity",
+        "updated_at",
+    )
+
+    list_filter = (
+        "warehouse",
+    )
+
+    search_fields = (
+        "product__name",
+        "product__article",
+        "warehouse__name",
+    )
+
+    autocomplete_fields = (
+        "product",
+        "warehouse",
+    )
+
+    ordering = (
+        "warehouse",
+        "product",
+    )
+
+    readonly_fields = (
+        "updated_at",
     )

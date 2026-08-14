@@ -272,6 +272,19 @@ class Contract(models.Model):
         verbose_name="Идентификатор договора в 1С"
     )
 
+    organization_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name="Организация в 1С",
+        help_text=(
+            "UID организации из 1С. "
+            "Используется для определения складов "
+            "и остатков по договору."
+        ),
+    )
+
     contract_name = models.CharField(
         max_length=500,
         verbose_name="Наименование договора"
@@ -544,3 +557,97 @@ class PromoAction(models.Model):
     def __str__(self):
         return self.name
     
+
+class Warehouse(models.Model):
+    warehouse_id = models.CharField(
+        max_length=255,
+        primary_key=True,
+        verbose_name="Идентификатор склада в 1С",
+    )
+
+    organization_id = models.CharField(
+        max_length=255,
+        db_index=True,
+        verbose_name="Организация в 1С",
+    )
+
+    name = models.CharField(
+        max_length=500,
+        verbose_name="Наименование склада",
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name="Активен",
+    )
+
+    class Meta:
+        verbose_name = "Склад"
+        verbose_name_plural = "Склады"
+        ordering = (
+            "organization_id",
+            "name",
+        )
+
+    def __str__(self):
+        return self.name
+
+
+class StockBalance(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="stock_balances",
+        verbose_name="Товар",
+    )
+
+    warehouse = models.ForeignKey(
+        Warehouse,
+        on_delete=models.CASCADE,
+        related_name="stock_balances",
+        verbose_name="Склад",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        default=0,
+        verbose_name="Остаток",
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Обновлено",
+    )
+
+    class Meta:
+        verbose_name = "Остаток товара"
+        verbose_name_plural = "Остатки товаров"
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=(
+                    "product",
+                    "warehouse",
+                ),
+                name="unique_product_warehouse_stock",
+            ),
+        ]
+
+        indexes = [
+            models.Index(
+                fields=(
+                    "warehouse",
+                    "product",
+                ),
+                name="stock_warehouse_product_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.product} / "
+            f"{self.warehouse}: "
+            f"{self.quantity}"
+        )
