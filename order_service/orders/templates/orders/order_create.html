@@ -1288,7 +1288,7 @@ function renderProducts(products) {
 
                                         <strong>
                                             ${formatMoney(
-                                                product.final_price
+                                                product.base_price
                                             )}
                                         </strong>
 
@@ -1808,7 +1808,23 @@ function renderProducts(products) {
 
                         <div class="cart-item-price">
 
-                            <span>
+                            ${
+                                item.discount_percent > 0
+                                    ? `
+                                        <div class="cart-item-base-price">
+                                            ${formatMoney(
+                                                item.base_price
+                                            )}
+                                        </div>
+
+                                        <div class="cart-item-discount">
+                                            Скидка ${item.discount_percent}%
+                                        </div>
+                                    `
+                                    : ""
+                            }
+
+                            <span class="cart-item-unit-price">
                                 ${formatMoney(
                                     item.price
                                 )}
