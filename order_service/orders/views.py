@@ -7,7 +7,7 @@ from django.shortcuts import (
 
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import JsonResponse
 
 from catalog.models import (
@@ -15,11 +15,15 @@ from catalog.models import (
     LegalEntityDeliveryAddress,
     Price,
     UserLegalEntityAccess,
+    CurrencyRate,
+    Warehouse,
+    StockBalance,
 )
 from sales.models import Order
 
 from .forms import OrderCreateForm
-from catalog.models import CurrencyRate
+from django.utils import timezone
+
 
 
 STATUS_ICONS = {
@@ -336,6 +340,42 @@ def customer_products(request, customer_id):
             status=404,
         )
 
+    if not contract.organization_id:
+        return JsonResponse(
+            {
+                "error": (
+                    "Для договора не указана "
+                    "организация."
+                ),
+            },
+            status=400,
+        )
+
+    warehouse_ids = list(
+        Warehouse.objects
+        .filter(
+            organization_id=(
+                contract.organization_id
+            ),
+            is_active=True,
+        )
+        .values_list(
+            "warehouse_id",
+            flat=True,
+        )
+    )
+
+    if not warehouse_ids:
+        return JsonResponse(
+            {
+                "error": (
+                    "Для организации договора "
+                    "не настроены активные склады."
+                ),
+            },
+            status=400,
+        )
+
     if not contract.brand:
         return JsonResponse(
             {
@@ -377,7 +417,7 @@ def customer_products(request, customer_id):
                 product__name__icontains=search
             )
             | Q(
-                product__article__icontains=search
+                product__name_translation__icontains=search
             )
             | Q(
                 product__article__icontains=search
@@ -385,7 +425,40 @@ def customer_products(request, customer_id):
         )
 
     # На первом этапе не отдаём браузеру тысячи строк.
-    prices = prices[:200]
+    price_rows = list(
+        prices[:200]
+    )
+
+
+    product_ids = [
+        price_row.product_id
+        for price_row in price_rows
+    ]
+
+    stock_rows = (
+        StockBalance.objects
+        .filter(
+            warehouse_id__in=warehouse_ids,
+            product_id__in=product_ids,
+        )
+        .values(
+            "product_id"
+        )
+        .annotate(
+            total_quantity=Sum(
+                "quantity"
+            )
+        )
+    )
+
+    stock_by_product = {
+        str(row["product_id"]):
+            (
+                row["total_quantity"]
+                or Decimal("0")
+            )
+        for row in stock_rows
+    }
 
     discount_percent = (
         access.discount_percent
@@ -393,8 +466,6 @@ def customer_products(request, customer_id):
     )
 
     hundred = Decimal("100.00")
-
-    from django.utils import timezone
 
     today = timezone.localdate()
 
@@ -425,7 +496,7 @@ def customer_products(request, customer_id):
 
     products = []
 
-    for price_row in prices:
+    for price_row in price_rows:
         base_price_ye = price_row.price
 
         base_price_rub = (
@@ -449,6 +520,13 @@ def customer_products(request, customer_id):
         )
 
         product = price_row.product
+
+        stock_quantity = (
+            stock_by_product.get(
+                str(product.pk),
+                Decimal("0"),
+            )
+        )        
 
         products.append(
             {
@@ -517,6 +595,9 @@ def customer_products(request, customer_id):
                 "final_price": str(
                     final_price_rub
                 ),
+                "stock_quantity": str(
+                    stock_quantity
+                ),
             }
         )
 
@@ -544,6 +625,17 @@ def customer_products(request, customer_id):
                     .isoformat()
                 ),
             },
+            
+            "stock": {
+                "organization_id": (
+                    contract.organization_id
+                ),
+                "warehouse_ids": [
+                    str(warehouse_id)
+                    for warehouse_id
+                    in warehouse_ids
+                ],
+            },            
 
             "discount_percent": str(
                 discount_percent

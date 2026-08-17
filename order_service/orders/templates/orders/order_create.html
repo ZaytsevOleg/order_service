@@ -1285,7 +1285,37 @@ function renderProducts(products) {
                                         </strong>
 
                                     </div>
+                                    
 
+                                    <div class="product-card-stock">
+
+                                        <span class="product-card-label">
+                                            Остаток
+                                        </span>
+
+                                        ${
+                                            Number(product.stock_quantity) > 0
+                                                ? `
+                                                    <strong class="product-stock-available">
+                                                        В наличии:
+                                                        ${Number(
+                                                            product.stock_quantity
+                                                        ).toLocaleString(
+                                                            "ru-RU",
+                                                            {
+                                                                maximumFractionDigits: 3
+                                                            }
+                                                        )}
+                                                    </strong>
+                                                `
+                                                : `
+                                                    <strong class="product-stock-empty">
+                                                        Нет в наличии
+                                                    </strong>
+                                                `
+                                        }
+
+                                    </div>
 
                                     <div class="product-card-quantity">
 

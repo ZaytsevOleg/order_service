@@ -98,6 +98,7 @@
 
     grid-template-columns:
         minmax(280px, 1fr)
+        130px
         150px
         175px
         125px;
@@ -110,6 +111,33 @@
     padding: 18px 20px;
 }
 
+/* Остатки */
+
+.product-card-stock {
+    min-width: 0;
+}
+
+.product-stock-available {
+    display: block;
+
+    color: var(--brand-text);
+
+    font-size: 14px;
+    font-weight: 500;
+
+    white-space: nowrap;
+}
+
+.product-stock-empty {
+    display: block;
+
+    color: var(--brand-muted);
+
+    font-size: 14px;
+    font-weight: 400;
+
+    white-space: nowrap;
+}
 
 /* Название */
 
@@ -318,6 +346,14 @@
     .product-card-action .primary-btn {
         width: 100%;
     }
+
+    .product-card-stock {
+        grid-column: 1;
+    }
+
+    .product-card-quantity {
+        grid-column: 2;
+    }
 }
 
 
@@ -335,6 +371,7 @@
 
     .product-card-info,
     .product-card-price,
+    .product-card-stock,
     .product-card-quantity,
     .product-card-action {
         grid-column: 1;
