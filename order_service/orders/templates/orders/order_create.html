@@ -602,11 +602,27 @@ document.addEventListener("DOMContentLoaded", function () {
 
     async function loadCustomerOptions() {
 
-        if (!customerSelect) {
+        if (
+            !customerSelect
+            || !contractSelect
+            || !addressSelect
+        ) {
             return;
         }
 
-        const customerId = customerSelect.value;
+        const customerId =
+            customerSelect.value;
+
+        /*
+         * При первоначальной загрузке формы Django уже может
+         * передать выбранный договор/адрес. Сохраняем значения
+         * до очистки select, чтобы восстановить их после AJAX.
+         */
+        const previousContractId =
+            contractSelect.value;
+
+        const previousAddressId =
+            addressSelect.value;
 
         contractSelect.innerHTML =
             '<option value="">---------</option>';
@@ -619,6 +635,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (!customerId) {
+            updateNextStepState();
             return;
         }
 
@@ -641,7 +658,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             const data = await response.json();
-
 
             data.contracts.forEach(
                 function (contract) {
@@ -667,6 +683,32 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             );
 
+            /*
+             * Восстанавливаем выбранный договор. Если раньше
+             * ничего не было выбрано, но доступен ровно один
+             * договор, выбираем его автоматически.
+             */
+            if (
+                previousContractId
+                && Array.from(
+                    contractSelect.options
+                ).some(
+                    function (option) {
+                        return (
+                            option.value
+                            === previousContractId
+                        );
+                    }
+                )
+            ) {
+                contractSelect.value =
+                    previousContractId;
+            } else if (data.contracts.length === 1) {
+                contractSelect.value =
+                    String(
+                        data.contracts[0].id
+                    );
+            }
 
             data.addresses.forEach(
                 function (address) {
@@ -686,12 +728,34 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             );
 
+            if (
+                previousAddressId
+                && Array.from(
+                    addressSelect.options
+                ).some(
+                    function (option) {
+                        return (
+                            option.value
+                            === previousAddressId
+                        );
+                    }
+                )
+            ) {
+                addressSelect.value =
+                    previousAddressId;
+            }
+
+            updateBrandFromContract();
+            updateNextStepState();
+
         } catch (error) {
 
             console.error(
                 "Ошибка загрузки данных клиента:",
                 error
             );
+
+            updateNextStepState();
         }
     }
 
@@ -1263,30 +1327,6 @@ function renderProducts(products) {
                                 );
 
 
-                            function getCartQuantity() {
-
-                                if (!cart.has(productId)) {
-                                    return 0;
-                                }
-
-                                return Math.max(
-                                    0,
-                                    Number(
-                                        cart.get(productId).quantity
-                                    ) || 0
-                                );
-                            }
-
-
-                            function getAvailableQuantity() {
-
-                                return Math.max(
-                                    0,
-                                    stockQuantity
-                                    - getCartQuantity()
-                                );
-                            }
-
 
                             card.innerHTML = `
                                 <div class="product-card-content">
@@ -1523,19 +1563,6 @@ function renderProducts(products) {
                                         )
                                     ) {
                                         quantityInput.value = "0";
-                                    }
-
-                                    const availableQuantity =
-                                        getAvailableQuantity();
-
-                                    if (
-                                        Number(quantityInput.value)
-                                        > availableQuantity
-                                    ) {
-                                        quantityInput.value =
-                                            String(
-                                                availableQuantity
-                                            );
                                     }
 
                                     updateControls();
@@ -1792,25 +1819,48 @@ function renderProducts(products) {
 
     function updateNextStepState() {
 
+        if (!nextBtn) {
+            return;
+        }
+
         const hasItems =
             cart.size > 0;
 
         const hasShortage =
             hasStockShortages();
 
+        /*
+         * Шаг 1: нужен выбранный клиент и договор.
+         * Шаг 2: нужна непустая корзина без дефицита.
+         * На остальных шагах отдельные проверки добавим
+         * по мере реализации соответствующих полей.
+         */
+        if (currentStep === 1) {
 
-        if (nextStepButton) {
+            nextBtn.disabled = !(
+                customerSelect
+                && customerSelect.value
+                && contractSelect
+                && contractSelect.value
+            );
 
-            nextStepButton.disabled =
+        } else if (currentStep === 2) {
+
+            nextBtn.disabled =
                 !hasItems
                 || hasShortage;
-        }
 
+        } else {
+
+            nextBtn.disabled = false;
+        }
 
         if (stockValidationMessage) {
 
-            stockValidationMessage.hidden =
-                !hasShortage;
+            stockValidationMessage.hidden = !(
+                currentStep === 2
+                && hasShortage
+            );
         }
     }
 
@@ -2298,11 +2348,11 @@ function renderProducts(products) {
 
                 await loadCustomerOptions();
 
-                updateBrandFromContract();
-
                 if (contractSelect.value) {
                     loadProducts();
                 }
+
+                updateNextStepState();
             }
         );
     }
@@ -2423,6 +2473,8 @@ function renderProducts(products) {
         if (step === 5) {
             updateConfirmation();
         }
+
+        updateNextStepState();
     }    
 
     if (
@@ -2430,7 +2482,11 @@ function renderProducts(products) {
         && customerSelect.value
     ) {
         loadCustomerOptions().then(
-            updateBrandFromContract
+            function () {
+                if (contractSelect.value) {
+                    loadProducts();
+                }
+            }
         );
     }    
 
