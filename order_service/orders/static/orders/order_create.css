@@ -199,6 +199,31 @@
     line-height: 1.35;
 }
 
+.out-of-stock-btn {
+    font-size: 13px;
+    font-weight: 500;
+
+    white-space: nowrap;
+
+    background: transparent !important;
+    color: var(--brand-muted) !important;
+
+    border: none !important;
+    box-shadow: none !important;
+
+    cursor: default !important;
+}
+
+.stock-validation-message {
+    margin-top: 10px;
+
+    color: var(--brand-primary);
+
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
 /* Количество */
 
 .quantity-control {

@@ -427,6 +427,15 @@
                         Далее
                     </button>
 
+                    <div
+                        id="stockValidationMessage"
+                        class="stock-validation-message"
+                        hidden
+                    >
+                        Уменьшите количество товаров,
+                        для которых недостаточно остатка.
+                    </div>
+
                     <button
                         type="submit"
                         class="primary-btn d-none"
@@ -508,6 +517,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const nextBtn = document.getElementById(
         "nextStep"
+    );
+
+    const stockValidationMessage = document.getElementById(
+        "stockValidationMessage"
     );
 
     const submitBtn = document.getElementById(
@@ -1467,6 +1480,26 @@ function renderProducts(products) {
                                     "product-card-out-of-stock",
                                     isOutOfStock
                                 );
+
+
+                                if (isOutOfStock) {
+
+                                    addButton.textContent =
+                                        "Нет в наличии";
+
+                                    addButton.classList.add(
+                                        "out-of-stock-btn"
+                                    );
+
+                                } else {
+
+                                    addButton.textContent =
+                                        "Добавить";
+
+                                    addButton.classList.remove(
+                                        "out-of-stock-btn"
+                                    );
+                                }
                             }
 
                             // =====================================
@@ -1753,8 +1786,33 @@ function renderProducts(products) {
 
 
         renderCartItems();
+        updateNextStepState();
     }
 
+
+    function updateNextStepState() {
+
+        const hasItems =
+            cart.size > 0;
+
+        const hasShortage =
+            hasStockShortages();
+
+
+        if (nextStepButton) {
+
+            nextStepButton.disabled =
+                !hasItems
+                || hasShortage;
+        }
+
+
+        if (stockValidationMessage) {
+
+            stockValidationMessage.hidden =
+                !hasShortage;
+        }
+    }
 
     function renderCartItems() {
 
@@ -2034,6 +2092,31 @@ function renderProducts(products) {
         );
     }
 
+
+    function hasStockShortages() {
+
+        for (const item of cart.values()) {
+
+            const stockQuantity =
+                Number(
+                    item.stock_quantity
+                ) || 0;
+
+            const quantity =
+                Number(
+                    item.quantity
+                ) || 0;
+
+            if (
+                quantity
+                > stockQuantity
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     function getSelectedText(selectElement) {
 
