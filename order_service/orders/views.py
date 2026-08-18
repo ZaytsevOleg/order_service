@@ -699,7 +699,7 @@ def customer_promotions(request, customer_id):
     contract = (
         Contract.objects
         .filter(
-            pk=contract_id,
+            contract_id=contract_id,
             legal_entity_id=customer_id,
             brand=request.brand.brand_id,
             is_active=True,
