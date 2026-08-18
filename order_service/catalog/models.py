@@ -631,30 +631,60 @@ class StockBalance(models.Model):
 
 class PromoAction(models.Model):
 
-    TYPE_BUY_X_GET_Y = "buy_x_get_y"
-    TYPE_BUNDLE_GIFT = "bundle_gift"
-    TYPE_BUNDLE_DISCOUNT = "bundle_discount"
+    # =========================================================
+    # Тип условия выполнения акции
+    # =========================================================
 
-    TYPE_CHOICES = (
+    CONDITION_FIXED_SET = "fixed_set"
+    CONDITION_TOTAL_QUANTITY = "total_quantity"
+    CONDITION_TOTAL_AMOUNT = "total_amount"
+
+    CONDITION_TYPE_CHOICES = (
         (
-            TYPE_BUY_X_GET_Y,
-            "Купи X — получи Y",
+            CONDITION_FIXED_SET,
+            "Фиксированный состав",
         ),
         (
-            TYPE_BUNDLE_GIFT,
-            "Набор товаров + подарок",
+            CONDITION_TOTAL_QUANTITY,
+            "Количество товаров из списка",
         ),
         (
-            TYPE_BUNDLE_DISCOUNT,
-            "Скидка на набор товаров",
+            CONDITION_TOTAL_AMOUNT,
+            "Сумма товаров из списка",
         ),
     )
+
+    # =========================================================
+    # Результат акции
+    # =========================================================
+
+    REWARD_GIFT = "gift"
+    REWARD_DISCOUNT = "discount"
+
+    REWARD_TYPE_CHOICES = (
+        (
+            REWARD_GIFT,
+            "Подарок",
+        ),
+        (
+            REWARD_DISCOUNT,
+            "Скидка",
+        ),
+    )
+
+    # =========================================================
+    # Идентификатор
+    # =========================================================
 
     promo_id = models.CharField(
         max_length=255,
         primary_key=True,
         verbose_name="Идентификатор акции",
     )
+
+    # =========================================================
+    # Основная информация
+    # =========================================================
 
     name = models.CharField(
         max_length=500,
@@ -666,7 +696,8 @@ class PromoAction(models.Model):
         blank=True,
         verbose_name="Краткое описание",
         help_text=(
-            "Отображается на карточке акции."
+            "Отображается непосредственно "
+            "на карточке акции."
         ),
     )
 
@@ -676,13 +707,6 @@ class PromoAction(models.Model):
         help_text=(
             "Отображается в окне «Подробнее»."
         ),
-    )
-
-    promo_type = models.CharField(
-        max_length=30,
-        choices=TYPE_CHOICES,
-        db_index=True,
-        verbose_name="Тип акции",
     )
 
     brand = models.ForeignKey(
@@ -698,22 +722,57 @@ class PromoAction(models.Model):
         null=True,
         verbose_name="Изображение",
         help_text=(
-            "Основное изображение карточки акции."
+            "Основное изображение, "
+            "отображаемое на карточке акции."
         ),
     )
 
-    valid_from = models.DateTimeField(
+    # =========================================================
+    # Условие выполнения
+    # =========================================================
+
+    condition_type = models.CharField(
+        max_length=30,
+        choices=CONDITION_TYPE_CHOICES,
+        default=CONDITION_FIXED_SET,
         db_index=True,
-        blank=True, 
-        null=True,
-        verbose_name="Действует с",
+        verbose_name="Условие выполнения",
     )
 
-    valid_to = models.DateTimeField(
-        db_index=True,
-        blank=True, 
+    threshold_quantity = models.PositiveIntegerField(
+        blank=True,
         null=True,
-        verbose_name="Действует до",
+        verbose_name="Минимальное количество товаров",
+        help_text=(
+            "Используется для условия "
+            "«Количество товаров из списка»."
+        ),
+    )
+
+    threshold_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name="Минимальная сумма, руб.",
+        help_text=(
+            "Используется для условия "
+            "«Сумма товаров из списка». "
+            "Сумма рассчитывается по базовым ценам "
+            "до применения скидок."
+        ),
+    )
+
+    # =========================================================
+    # Результат акции
+    # =========================================================
+
+    reward_type = models.CharField(
+        max_length=20,
+        choices=REWARD_TYPE_CHOICES,
+        default=REWARD_GIFT,
+        db_index=True,
+        verbose_name="Результат акции",
     )
 
     discount_percent = models.DecimalField(
@@ -723,20 +782,48 @@ class PromoAction(models.Model):
         null=True,
         verbose_name="Промо-скидка, %",
         help_text=(
-            "Используется для скидочных акций. "
-            "Не суммируется со скидкой клиента."
+            "Используется, если результат акции — "
+            "скидка. Применяется только к товарам "
+            "акции и не суммируется "
+            "со скидкой клиента."
         ),
     )
+
+    # =========================================================
+    # Отображение акции клиенту
+    # =========================================================
 
     show_progress = models.BooleanField(
         default=False,
         verbose_name="Показывать прогресс выполнения",
         help_text=(
             "Если включено, клиент увидит, "
-            "каких товаров не хватает "
-            "до выполнения условий акции."
+            "сколько товаров или какой суммы "
+            "не хватает до выполнения условий акции."
         ),
     )
+
+    # =========================================================
+    # Период действия
+    # =========================================================
+
+    valid_from = models.DateTimeField(
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name="Действует с",
+    )
+
+    valid_to = models.DateTimeField(
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name="Действует до",
+    )
+
+    # =========================================================
+    # Управление
+    # =========================================================
 
     priority = models.PositiveIntegerField(
         default=100,
@@ -754,6 +841,10 @@ class PromoAction(models.Model):
         verbose_name="Активна",
     )
 
+    # =========================================================
+    # Служебные поля
+    # =========================================================
+
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name="Создана",
@@ -764,9 +855,14 @@ class PromoAction(models.Model):
         verbose_name="Обновлена",
     )
 
+    # =========================================================
+    # Meta
+    # =========================================================
+
     class Meta:
         verbose_name = "Промо акция"
         verbose_name_plural = "Промо акции"
+
         ordering = (
             "priority",
             "-valid_from",
@@ -794,8 +890,15 @@ class PromoActionProduct(models.Model):
     )
 
     quantity = models.PositiveIntegerField(
-        default=1,
+        blank=True,
+        null=True,
         verbose_name="Необходимое количество",
+        help_text=(
+            "Указывается только для акции "
+            "с фиксированным составом. "
+            "Для условий по общему количеству "
+            "или сумме оставьте поле пустым."
+        ),
     )
 
     class Meta:
@@ -808,16 +911,21 @@ class PromoActionProduct(models.Model):
                     "promo",
                     "product",
                 ),
-                name="unique_promo_condition_product",
+                name=(
+                    "unique_promo_condition_product"
+                ),
             ),
         ]
 
     def __str__(self):
-        return (
-            f"{self.product} × "
-            f"{self.quantity}"
-        )
 
+        if self.quantity:
+            return (
+                f"{self.product} × "
+                f"{self.quantity}"
+            )
+
+        return str(self.product)
 
 class PromoGiftProduct(models.Model):
 

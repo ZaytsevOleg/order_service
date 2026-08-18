@@ -383,6 +383,11 @@ class PromoActionProductInline(
         "product",
     )
 
+    fields = (
+        "product",
+        "quantity",
+    )
+
 
 class PromoGiftProductInline(
     admin.TabularInline
@@ -394,12 +399,18 @@ class PromoGiftProductInline(
         "product",
     )
 
+    fields = (
+        "product",
+        "quantity",
+    )
+
 @admin.register(PromoAction)
 class PromoActionAdmin(admin.ModelAdmin):
 
     list_display = (
         "name",
-        "promo_type",
+        "condition_type",
+        "reward_type",
         "brand",
         "valid_from",
         "valid_to",
@@ -409,7 +420,8 @@ class PromoActionAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
-        "promo_type",
+        "condition_type",
+        "reward_type",
         "brand",
         "show_progress",
         "is_active",
@@ -436,22 +448,40 @@ class PromoActionAdmin(admin.ModelAdmin):
             "Основное",
             {
                 "fields": (
+                    "promo_id",
                     "name",
                     "short_description",
                     "description",
-                    "promo_type",
                     "brand",
                     "image",
                 )
             },
         ),
         (
-            "Условия действия",
+            "Условие выполнения",
+            {
+                "fields": (
+                    "condition_type",
+                    "threshold_quantity",
+                    "threshold_amount",
+                )
+            },
+        ),
+        (
+            "Результат акции",
+            {
+                "fields": (
+                    "reward_type",
+                    "discount_percent",
+                )
+            },
+        ),
+        (
+            "Период и отображение",
             {
                 "fields": (
                     "valid_from",
                     "valid_to",
-                    "discount_percent",
                     "show_progress",
                     "priority",
                     "is_active",
