@@ -201,12 +201,12 @@
 
 .out-of-stock-btn {
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
 
     white-space: nowrap;
 
     background: transparent !important;
-    color: var(--brand-muted) !important;
+    color: var(--brand-color) !important;
 
     border: none !important;
     box-shadow: none !important;

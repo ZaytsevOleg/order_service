@@ -532,30 +532,6 @@ class CurrencyRate(models.Model):
             f"{self.rate} "
             f"с {self.valid_from:%d.%m.%Y}"
         )
-
-class PromoAction(models.Model):
-    promo_id = models.CharField(max_length=255, primary_key=True)
-    name = models.CharField(max_length=500)
-    description = models.TextField(blank=True, null=True)
-
-    brand = models.ForeignKey(
-        Brand,
-        on_delete=models.PROTECT,
-        related_name="promo_actions",
-        verbose_name="Бренд",
-    )
-
-    date_from = models.DateField(blank=True, null=True)
-    date_to = models.DateField(blank=True, null=True)
-
-    is_active = models.BooleanField(default=True)
-
-    class Meta:
-        verbose_name = "Промо акция"
-        verbose_name_plural = "Промо акции"
-
-    def __str__(self):
-        return self.name
     
 
 class Warehouse(models.Model):
@@ -649,5 +625,237 @@ class StockBalance(models.Model):
         return (
             f"{self.product} / "
             f"{self.warehouse}: "
+            f"{self.quantity}"
+        )
+
+
+class PromoAction(models.Model):
+
+    TYPE_BUY_X_GET_Y = "buy_x_get_y"
+    TYPE_BUNDLE_GIFT = "bundle_gift"
+    TYPE_BUNDLE_DISCOUNT = "bundle_discount"
+
+    TYPE_CHOICES = (
+        (
+            TYPE_BUY_X_GET_Y,
+            "Купи X — получи Y",
+        ),
+        (
+            TYPE_BUNDLE_GIFT,
+            "Набор товаров + подарок",
+        ),
+        (
+            TYPE_BUNDLE_DISCOUNT,
+            "Скидка на набор товаров",
+        ),
+    )
+
+    promo_id = models.CharField(
+        max_length=255,
+        primary_key=True,
+        verbose_name="Идентификатор акции",
+    )
+
+    name = models.CharField(
+        max_length=500,
+        verbose_name="Название акции",
+    )
+
+    short_description = models.CharField(
+        max_length=1000,
+        blank=True,
+        verbose_name="Краткое описание",
+        help_text=(
+            "Отображается на карточке акции."
+        ),
+    )
+
+    description = models.TextField(
+        blank=True,
+        verbose_name="Подробное описание",
+        help_text=(
+            "Отображается в окне «Подробнее»."
+        ),
+    )
+
+    promo_type = models.CharField(
+        max_length=30,
+        choices=TYPE_CHOICES,
+        db_index=True,
+        verbose_name="Тип акции",
+    )
+
+    brand = models.ForeignKey(
+        Brand,
+        on_delete=models.PROTECT,
+        related_name="promo_actions",
+        verbose_name="Бренд",
+    )
+
+    image = models.ImageField(
+        upload_to="promo/",
+        blank=True,
+        null=True,
+        verbose_name="Изображение",
+        help_text=(
+            "Основное изображение карточки акции."
+        ),
+    )
+
+    valid_from = models.DateTimeField(
+        db_index=True,
+        blank=True, 
+        null=True,
+        verbose_name="Действует с",
+    )
+
+    valid_to = models.DateTimeField(
+        db_index=True,
+        blank=True, 
+        null=True,
+        verbose_name="Действует до",
+    )
+
+    discount_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name="Промо-скидка, %",
+        help_text=(
+            "Используется для скидочных акций. "
+            "Не суммируется со скидкой клиента."
+        ),
+    )
+
+    show_progress = models.BooleanField(
+        default=False,
+        verbose_name="Показывать прогресс выполнения",
+        help_text=(
+            "Если включено, клиент увидит, "
+            "каких товаров не хватает "
+            "до выполнения условий акции."
+        ),
+    )
+
+    priority = models.PositiveIntegerField(
+        default=100,
+        db_index=True,
+        verbose_name="Приоритет",
+        help_text=(
+            "Чем меньше значение, тем выше "
+            "приоритет акции при пересечении условий."
+        ),
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name="Активна",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Создана",
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Обновлена",
+    )
+
+    class Meta:
+        verbose_name = "Промо акция"
+        verbose_name_plural = "Промо акции"
+        ordering = (
+            "priority",
+            "-valid_from",
+            "name",
+        )
+
+    def __str__(self):
+        return self.name
+
+
+class PromoActionProduct(models.Model):
+
+    promo = models.ForeignKey(
+        PromoAction,
+        on_delete=models.CASCADE,
+        related_name="condition_products",
+        verbose_name="Промо акция",
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="promo_conditions",
+        verbose_name="Товар",
+    )
+
+    quantity = models.PositiveIntegerField(
+        default=1,
+        verbose_name="Необходимое количество",
+    )
+
+    class Meta:
+        verbose_name = "Товар условия промо"
+        verbose_name_plural = "Товары условия промо"
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=(
+                    "promo",
+                    "product",
+                ),
+                name="unique_promo_condition_product",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.product} × "
+            f"{self.quantity}"
+        )
+
+
+class PromoGiftProduct(models.Model):
+
+    promo = models.ForeignKey(
+        PromoAction,
+        on_delete=models.CASCADE,
+        related_name="gift_products",
+        verbose_name="Промо акция",
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="promo_gifts",
+        verbose_name="Подарок",
+    )
+
+    quantity = models.PositiveIntegerField(
+        default=1,
+        verbose_name="Количество в подарок",
+    )
+
+    class Meta:
+        verbose_name = "Подарок промо"
+        verbose_name_plural = "Подарки промо"
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=(
+                    "promo",
+                    "product",
+                ),
+                name="unique_promo_gift_product",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.product} × "
             f"{self.quantity}"
         )

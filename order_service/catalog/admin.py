@@ -11,6 +11,8 @@ from .models import (
     Product,
     Price,
     PromoAction,
+    PromoActionProduct,
+    PromoGiftProduct,
     CurrencyRate,
     Warehouse,
     StockBalance,
@@ -370,23 +372,92 @@ class PriceAdmin(admin.ModelAdmin):
     )
 
 
+
+class PromoActionProductInline(
+    admin.TabularInline
+):
+    model = PromoActionProduct
+    extra = 1
+
+    autocomplete_fields = (
+        "product",
+    )
+
+
+class PromoGiftProductInline(
+    admin.TabularInline
+):
+    model = PromoGiftProduct
+    extra = 1
+
+    autocomplete_fields = (
+        "product",
+    )
+
 @admin.register(PromoAction)
 class PromoActionAdmin(admin.ModelAdmin):
+
     list_display = (
         "name",
+        "promo_type",
         "brand",
-        "date_from",
-        "date_to",
+        "valid_from",
+        "valid_to",
+        "show_progress",
+        "priority",
         "is_active",
     )
 
     list_filter = (
+        "promo_type",
         "brand",
+        "show_progress",
         "is_active",
     )
 
-    autocomplete_fields = (
-        "brand",
+    search_fields = (
+        "name",
+        "short_description",
+        "description",
+    )
+
+    ordering = (
+        "priority",
+        "-valid_from",
+    )
+
+    inlines = (
+        PromoActionProductInline,
+        PromoGiftProductInline,
+    )
+
+    fieldsets = (
+        (
+            "Основное",
+            {
+                "fields": (
+                    "name",
+                    "short_description",
+                    "description",
+                    "promo_type",
+                    "brand",
+                    "image",
+                )
+            },
+        ),
+        (
+            "Условия действия",
+            {
+                "fields": (
+                    "valid_from",
+                    "valid_to",
+                    "discount_percent",
+                    "show_progress",
+                    "priority",
+                    "is_active",
+                )
+            },
+        ),
     )
 
 @admin.register(CurrencyRate)
