@@ -7,7 +7,7 @@ from django.shortcuts import (
 
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Q, Sum
+from django.db.models import Q, Prefetch, Sum
 from django.http import JsonResponse
 
 from catalog.models import (
@@ -18,6 +18,9 @@ from catalog.models import (
     CurrencyRate,
     Warehouse,
     StockBalance,
+    PromoAction,
+    PromoActionProduct,
+    PromoGiftProduct,
 )
 from sales.models import Order
 
@@ -643,5 +646,293 @@ def customer_products(request, customer_id):
 
             "count": len(products),
             "products": products,
+        }
+    )
+
+
+
+def customer_promotions(request, customer_id):
+
+    contract_id = (
+        request.GET.get(
+            "contract_id",
+            "",
+        )
+        .strip()
+    )
+
+    if not contract_id:
+        return JsonResponse(
+            {
+                "error": "Не указан договор.",
+            },
+            status=400,
+        )
+
+    # ---------------------------------------------------------
+    # Проверяем доступ пользователя к клиенту
+    # ---------------------------------------------------------
+
+    access_exists = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            legal_entity_id=customer_id,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+        .exists()
+    )
+
+    if not access_exists:
+        return JsonResponse(
+            {
+                "error": "Клиент недоступен.",
+            },
+            status=403,
+        )
+
+    # ---------------------------------------------------------
+    # Проверяем договор и бренд
+    # ---------------------------------------------------------
+
+    contract = (
+        Contract.objects
+        .filter(
+            pk=contract_id,
+            legal_entity_id=customer_id,
+            brand=request.brand.brand_id,
+            is_active=True,
+        )
+        .first()
+    )
+
+    if contract is None:
+        return JsonResponse(
+            {
+                "error": (
+                    "Договор не найден "
+                    "или недоступен."
+                ),
+            },
+            status=404,
+        )
+
+    if not contract.brand:
+        return JsonResponse(
+            {
+                "error": (
+                    "У договора не указан бренд."
+                ),
+            },
+            status=400,
+        )
+
+    # ---------------------------------------------------------
+    # Действующие промо
+    # ---------------------------------------------------------
+
+    now = timezone.now()
+
+    promotions = (
+        PromoAction.objects
+        .filter(
+            brand_id=contract.brand,
+            is_active=True,
+        )
+        .filter(
+            Q(valid_from__isnull=True)
+            | Q(valid_from__lte=now)
+        )
+        .filter(
+            Q(valid_to__isnull=True)
+            | Q(valid_to__gte=now)
+        )
+        .prefetch_related(
+            Prefetch(
+                "condition_products",
+                queryset=(
+                    PromoActionProduct.objects
+                    .select_related("product")
+                    .order_by(
+                        "product__name"
+                    )
+                ),
+            ),
+            Prefetch(
+                "gift_products",
+                queryset=(
+                    PromoGiftProduct.objects
+                    .select_related("product")
+                    .order_by(
+                        "product__name"
+                    )
+                ),
+            ),
+        )
+        .order_by(
+            "priority",
+            "-valid_from",
+            "name",
+        )
+    )
+
+    result = []
+
+    for promo in promotions:
+
+        condition_products = []
+
+        for row in promo.condition_products.all():
+
+            condition_products.append(
+                {
+                    "product_id": str(
+                        row.product_id
+                    ),
+                    "article": (
+                        row.product.article
+                        or ""
+                    ),
+                    "name": (
+                        row.product.name
+                        or ""
+                    ),
+                    "quantity": (
+                        row.quantity
+                    ),
+                }
+            )
+
+        gift_products = []
+
+        for row in promo.gift_products.all():
+
+            gift_products.append(
+                {
+                    "product_id": str(
+                        row.product_id
+                    ),
+                    "article": (
+                        row.product.article
+                        or ""
+                    ),
+                    "name": (
+                        row.product.name
+                        or ""
+                    ),
+                    "quantity": (
+                        row.quantity
+                    ),
+                }
+            )
+
+        image_url = ""
+
+        if promo.image:
+            try:
+                image_url = promo.image.url
+            except ValueError:
+                image_url = ""
+
+        result.append(
+            {
+                "promo_id": str(
+                    promo.pk
+                ),
+
+                "name": promo.name,
+
+                "short_description": (
+                    promo.short_description
+                    or ""
+                ),
+
+                "description": (
+                    promo.description
+                    or ""
+                ),
+
+                "image_url": image_url,
+
+                "condition_type": (
+                    promo.condition_type
+                ),
+
+                "condition_type_name": (
+                    promo.get_condition_type_display()
+                ),
+
+                "threshold_quantity": (
+                    promo.threshold_quantity
+                ),
+
+                "threshold_amount": (
+                    str(promo.threshold_amount)
+                    if promo.threshold_amount
+                    is not None
+                    else None
+                ),
+
+                "reward_type": (
+                    promo.reward_type
+                ),
+
+                "reward_type_name": (
+                    promo.get_reward_type_display()
+                ),
+
+                "discount_percent": (
+                    str(promo.discount_percent)
+                    if promo.discount_percent
+                    is not None
+                    else None
+                ),
+
+                "show_progress": (
+                    promo.show_progress
+                ),
+
+                "priority": promo.priority,
+
+                "valid_from": (
+                    promo.valid_from.isoformat()
+                    if promo.valid_from
+                    else None
+                ),
+
+                "valid_to": (
+                    promo.valid_to.isoformat()
+                    if promo.valid_to
+                    else None
+                ),
+
+                "condition_products": (
+                    condition_products
+                ),
+
+                "gift_products": (
+                    gift_products
+                ),
+            }
+        )
+
+    return JsonResponse(
+        {
+            "customer_id": str(
+                customer_id
+            ),
+
+            "contract_id": str(
+                contract.pk
+            ),
+
+            "brand_id": (
+                contract.brand
+            ),
+
+            "count": len(result),
+
+            "promotions": result,
         }
     )
