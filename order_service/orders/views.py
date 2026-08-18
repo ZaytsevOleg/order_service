@@ -23,10 +23,12 @@ from catalog.models import (
     PromoGiftProduct,
 )
 from sales.models import Order
-
+import json
 from .forms import OrderCreateForm
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
+from orders.services.promo_engine import PromoEngine
 
 
 STATUS_ICONS = {
@@ -924,7 +926,7 @@ def customer_promotions(request, customer_id):
             ),
 
             "contract_id": str(
-                contract.pk
+                contract.contract_id
             ),
 
             "brand_id": (
@@ -934,5 +936,515 @@ def customer_promotions(request, customer_id):
             "count": len(result),
 
             "promotions": result,
+        }
+    )
+
+@login_required
+@require_POST
+def evaluate_promotions(
+    request,
+    customer_id,
+):
+
+    # =========================================================
+    # Читаем JSON
+    # =========================================================
+
+    try:
+        payload = json.loads(
+            request.body.decode("utf-8")
+        )
+
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+    ):
+        return JsonResponse(
+            {
+                "error": (
+                    "Некорректный JSON."
+                ),
+            },
+            status=400,
+        )
+
+
+    contract_id = str(
+        payload.get(
+            "contract_id",
+            "",
+        )
+    ).strip()
+
+    raw_items = (
+        payload.get("items")
+        or []
+    )
+
+
+    if not contract_id:
+
+        return JsonResponse(
+            {
+                "error": (
+                    "Не указан договор."
+                ),
+            },
+            status=400,
+        )
+
+
+    if not isinstance(
+        raw_items,
+        list,
+    ):
+
+        return JsonResponse(
+            {
+                "error": (
+                    "Некорректный состав корзины."
+                ),
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Проверяем доступ пользователя к клиенту
+    # =========================================================
+
+    access = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            legal_entity_id=customer_id,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+        .select_related(
+            "price_type",
+        )
+        .first()
+    )
+
+
+    if access is None:
+
+        return JsonResponse(
+            {
+                "error": (
+                    "Клиент недоступен."
+                ),
+            },
+            status=403,
+        )
+
+
+    if access.price_type_id is None:
+
+        return JsonResponse(
+            {
+                "error": (
+                    "Для клиента не назначен "
+                    "тип цен."
+                ),
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Проверяем договор
+    # =========================================================
+
+    contract = (
+        Contract.objects
+        .filter(
+            contract_id=contract_id,
+            legal_entity_id=customer_id,
+            brand=request.brand.brand_id,
+            is_active=True,
+        )
+        .first()
+    )
+
+
+    if contract is None:
+
+        return JsonResponse(
+            {
+                "error": (
+                    "Договор не найден "
+                    "или недоступен."
+                ),
+            },
+            status=404,
+        )
+
+
+    if not contract.brand:
+
+        return JsonResponse(
+            {
+                "error": (
+                    "У договора не указан бренд."
+                ),
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Нормализуем корзину
+    #
+    # Если один product_id каким-либо образом пришёл
+    # несколько раз — складываем количество.
+    # =========================================================
+
+    quantities_by_product = {}
+
+
+    for item in raw_items:
+
+        if not isinstance(
+            item,
+            dict,
+        ):
+            continue
+
+
+        product_id = str(
+            item.get(
+                "product_id",
+                "",
+            )
+        ).strip()
+
+
+        try:
+            quantity = int(
+                item.get(
+                    "quantity",
+                    0,
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+            quantity = 0
+
+
+        if (
+            not product_id
+            or quantity <= 0
+        ):
+            continue
+
+
+        quantities_by_product[
+            product_id
+        ] = (
+            quantities_by_product.get(
+                product_id,
+                0,
+            )
+            + quantity
+        )
+
+
+    product_ids = list(
+        quantities_by_product.keys()
+    )
+
+
+    # =========================================================
+    # Берём актуальный курс YE
+    # =========================================================
+
+    today = timezone.localdate()
+
+
+    currency_rate_row = (
+        CurrencyRate.objects
+        .filter(
+            currency_code="YE",
+            valid_from__lte=today,
+        )
+        .order_by(
+            "-valid_from",
+            "-id",
+        )
+        .first()
+    )
+
+
+    if currency_rate_row is None:
+
+        return JsonResponse(
+            {
+                "error": (
+                    "Не найден действующий "
+                    "курс валюты YE."
+                ),
+            },
+            status=500,
+        )
+
+
+    currency_rate = (
+        currency_rate_row.rate
+    )
+
+
+    # =========================================================
+    # Получаем базовые цены самостоятельно
+    # =========================================================
+
+    prices = (
+        Price.objects
+        .filter(
+            price_type_id=(
+                access.price_type_id
+            ),
+            product_id__in=(
+                product_ids
+            ),
+            product__brand_id=(
+                contract.brand
+            ),
+            product__is_active=True,
+        )
+        .select_related(
+            "product",
+        )
+    )
+
+
+    prices_by_product = {
+        str(price.product_id):
+            price
+        for price in prices
+    }
+
+
+    # =========================================================
+    # Готовим корзину для PromoEngine
+    # =========================================================
+
+    cart_items = []
+
+
+    for (
+        product_id,
+        quantity,
+    ) in quantities_by_product.items():
+
+        price_row = (
+            prices_by_product.get(
+                product_id
+            )
+        )
+
+
+        # Товар без актуальной цены
+        # не участвует в расчёте промо.
+        if price_row is None:
+            continue
+
+
+        base_price_rub = (
+            Decimal(
+                str(
+                    price_row.price
+                )
+            )
+            * Decimal(
+                str(
+                    currency_rate
+                )
+            )
+        ).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+
+
+        cart_items.append(
+            {
+                "product_id":
+                    product_id,
+
+                "quantity":
+                    quantity,
+
+                "base_price":
+                    base_price_rub,
+            }
+        )
+
+
+    # =========================================================
+    # Получаем только действующие акции бренда
+    # =========================================================
+
+    now = timezone.now()
+
+
+    promotions = (
+        PromoAction.objects
+        .filter(
+            brand_id=contract.brand,
+            is_active=True,
+        )
+        .filter(
+            Q(valid_from__isnull=True)
+            | Q(valid_from__lte=now)
+        )
+        .filter(
+            Q(valid_to__isnull=True)
+            | Q(valid_to__gte=now)
+        )
+        .prefetch_related(
+            Prefetch(
+                "condition_products",
+                queryset=(
+                    PromoActionProduct.objects
+                    .select_related(
+                        "product"
+                    )
+                ),
+            ),
+
+            Prefetch(
+                "gift_products",
+                queryset=(
+                    PromoGiftProduct.objects
+                    .select_related(
+                        "product"
+                    )
+                ),
+            ),
+        )
+        .order_by(
+            "priority",
+            "-valid_from",
+            "name",
+        )
+    )
+
+
+    # =========================================================
+    # Оцениваем акции
+    # =========================================================
+
+    evaluations = []
+
+
+    for promo in promotions:
+
+        evaluation = (
+            PromoEngine.evaluate(
+                promo,
+                cart_items,
+            )
+        )
+
+
+        eligible = bool(
+            evaluation.get(
+                "eligible",
+                False,
+            )
+        )
+
+
+        progress = (
+            evaluation.get(
+                "progress"
+            )
+        )
+
+        missing = (
+            evaluation.get(
+                "missing"
+            )
+            or []
+        )
+
+
+        # -----------------------------------------------------
+        # Администратор может запретить клиенту видеть,
+        # сколько ему не хватает до акции.
+        #
+        # Сам факт eligible backend всё равно знает.
+        # -----------------------------------------------------
+
+        if (
+            not eligible
+            and not promo.show_progress
+        ):
+            progress = None
+            missing = []
+
+
+        evaluations.append(
+            {
+                "promo_id": str(
+                    promo.pk
+                ),
+
+                "eligible":
+                    eligible,
+
+                "show_progress":
+                    promo.show_progress,
+
+                "condition_type":
+                    promo.condition_type,
+
+                "reward_type":
+                    promo.reward_type,
+
+                "progress":
+                    progress,
+
+                "missing":
+                    missing,
+            }
+        )
+
+
+    return JsonResponse(
+        {
+            "customer_id": str(
+                customer_id
+            ),
+
+            "contract_id": str(
+                contract.contract_id
+            ),
+
+            "currency": {
+                "code": "YE",
+
+                "rate": str(
+                    currency_rate
+                ),
+
+                "valid_from": (
+                    currency_rate_row
+                    .valid_from
+                    .isoformat()
+                ),
+            },
+
+            "count": len(
+                evaluations
+            ),
+
+            "promotions":
+                evaluations,
         }
     )

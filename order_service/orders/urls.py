@@ -37,4 +37,9 @@ urlpatterns = [
         views.customer_promotions,
         name="customer_promotions",
     ),
+    path(
+        "api/customer/<str:customer_id>/promotions/evaluate/",
+        views.evaluate_promotions,
+        name="evaluate_promotions",
+    ),
 ]

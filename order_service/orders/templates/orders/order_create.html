@@ -178,70 +178,26 @@
 
                 <section
                     class="order-step"
-                    data-step="3"
-                >
-                    <h2>Промо акции</h2>
+                    data-step="3">
+                    <div class="order-step-heading">
+                        <div>
+                            <h2>Промо акции</h2>
 
-                    <div class="promo-grid">
-
-                        <div class="promo-card">
-                            <h3>
-                                Подарок при заказе от 30 000 руб
-                            </h3>
-
-                            <p>
-                                Добавьте товары на сумму от
-                                30 000 руб и получите подарок.
+                            <p class="order-step-description">
+                                Доступные предложения для выбранного бренда.
                             </p>
-
-                            <div class="promo-actions">
-                                <button
-                                    type="button"
-                                    class="secondary-btn"
-                                >
-                                    Подробнее
-                                </button>
-
-                                <button
-                                    type="button"
-                                    class="small-btn"
-                                >
-                                    Добавить в корзину
-                                </button>
-                            </div>
                         </div>
-
-
-                        <div class="promo-card">
-                            <h3>
-                                Скидка на набор ухода
-                            </h3>
-
-                            <p>
-                                Специальное предложение
-                                для выбранного бренда.
-                            </p>
-
-                            <div class="promo-actions">
-                                <button
-                                    type="button"
-                                    class="secondary-btn"
-                                >
-                                    Подробнее
-                                </button>
-
-                                <button
-                                    type="button"
-                                    class="small-btn"
-                                >
-                                    Добавить в корзину
-                                </button>
-                            </div>
-                        </div>
-
                     </div>
-                </section>
 
+                    <div
+                        id="promoCards"
+                        class="promo-grid">
+                        <div class="product-empty-state">
+                            Промо акции будут загружены
+                            после выбора клиента и договора.
+                        </div>
+                    </div>
+                </section>                
 
                 <!-- ================================================= -->
                 <!-- ШАГ 4. Отгрузка                                  -->
@@ -495,6 +451,38 @@
 
     </div>
 
+    <div
+        id="promoModal"
+        class="promo-modal"
+        hidden>
+        <div
+            class="promo-modal-backdrop"
+            data-promo-modal-close>
+        </div>
+
+        <div class="promo-modal-dialog">
+
+            <button
+                type="button"
+                class="promo-modal-close"
+                data-promo-modal-close
+                aria-label="Закрыть">
+                <i class="bi bi-x-lg"></i>
+            </button>
+
+            <h3
+                id="promoModalTitle"
+                class="promo-modal-title">
+            </h3>
+
+            <div
+                id="promoModalContent"
+                class="promo-modal-content"
+            ></div>
+
+        </div>
+    </div>
+
 </div>
 
 
@@ -561,6 +549,26 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById(
             "productSearch"
         );
+
+    const promoCards =
+        document.getElementById(
+            "promoCards"
+        );
+
+    const promoModal =
+        document.getElementById(
+            "promoModal"
+        );
+
+    const promoModalTitle =
+        document.getElementById(
+            "promoModalTitle"
+        );
+
+    const promoModalContent =
+        document.getElementById(
+            "promoModalContent"
+        );        
 
     const productSearchButton =
         document.getElementById(
@@ -1816,6 +1824,370 @@ function renderProducts(products) {
         updateNextStepState();
     }
 
+    async function loadPromotions() {
+
+        if (
+            !customerSelect
+            || !contractSelect
+            || !promoCards
+        ) {
+            return;
+        }
+
+        const customerId =
+            customerSelect.value;
+
+        const contractId =
+            contractSelect.value;
+
+        if (
+            !customerId
+            || !contractId
+        ) {
+            promoCards.innerHTML = `
+                <div class="product-empty-state">
+                    Выберите клиента и договор.
+                </div>
+            `;
+
+            return;
+        }
+
+        promoCards.innerHTML = `
+            <div class="product-empty-state">
+                Загрузка промо акций...
+            </div>
+        `;
+
+        try {
+
+            const params =
+                new URLSearchParams();
+
+            params.set(
+                "contract_id",
+                contractId
+            );
+
+            const response = await fetch(
+                `/orders/api/customer/${customerId}/promotions/?${params.toString()}`,
+                {
+                    headers: {
+                        "X-Requested-With":
+                            "XMLHttpRequest"
+                    }
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error
+                    || `HTTP ${response.status}`
+                );
+            }
+
+            renderPromotions(
+                data.promotions
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Ошибка загрузки промо:",
+                error
+            );
+
+            promoCards.innerHTML = `
+                <div class="product-empty-state product-error-state">
+                    ${escapeHtml(
+                        error.message
+                    )}
+                </div>
+            `;
+        }
+    }
+
+    function renderPromotions(promotions) {
+
+        if (!promoCards) {
+            return;
+        }
+
+        promoCards.innerHTML = "";
+
+        if (!promotions.length) {
+
+            promoCards.innerHTML = `
+                <div class="product-empty-state">
+                    Сейчас нет доступных промо акций.
+                </div>
+            `;
+
+            return;
+        }
+
+        promotions.forEach(
+            function (promo) {
+
+                const card =
+                    document.createElement(
+                        "article"
+                    );
+
+                card.className =
+                    "promo-card";
+
+                const validTo =
+                    promo.valid_to
+                        ? new Date(
+                            promo.valid_to
+                        )
+                        : null;
+
+                const validToText =
+                    validTo
+                        ? validTo.toLocaleDateString(
+                            "ru-RU"
+                        )
+                        : "";
+
+                card.innerHTML = `
+
+                    ${
+                        promo.image_url
+                            ? `
+                                <div class="promo-card-image-wrap">
+
+                                    <img
+                                        src="${escapeHtml(
+                                            promo.image_url
+                                        )}"
+                                        alt="${escapeHtml(
+                                            promo.name
+                                        )}"
+                                        class="promo-card-image"
+                                    >
+
+                                </div>
+                            `
+                            : ""
+                    }
+
+                    <div class="promo-card-body">
+
+                        <h3>
+                            ${escapeHtml(
+                                promo.name
+                            )}
+                        </h3>
+
+                        ${
+                            promo.short_description
+                                ? `
+                                    <p class="promo-card-description">
+                                        ${escapeHtml(
+                                            promo.short_description
+                                        )}
+                                    </p>
+                                `
+                                : ""
+                        }
+
+                        ${
+                            validToText
+                                ? `
+                                    <div class="promo-card-validity">
+                                        Действует до
+                                        ${validToText}
+                                    </div>
+                                `
+                                : ""
+                        }
+
+                        <div class="promo-card-actions">
+
+                            <button
+                                type="button"
+                                class="secondary-btn promo-details-btn"
+                            >
+                                Подробнее
+                            </button>
+
+                        </div>
+
+                    </div>
+                `;
+
+                const detailsButton =
+                    card.querySelector(
+                        ".promo-details-btn"
+                    );
+
+                detailsButton.addEventListener(
+                    "click",
+                    function () {
+
+                        openPromoDetails(
+                            promo
+                        );
+                    }
+                );
+
+                promoCards.appendChild(
+                    card
+                );
+            }
+        );
+    }
+
+    function openPromoDetails(promo) {
+
+        if (
+            !promoModal
+            || !promoModalTitle
+            || !promoModalContent
+        ) {
+            return;
+        }
+
+        promoModalTitle.textContent =
+            promo.name || "";
+
+        const conditionProducts =
+            promo.condition_products || [];
+
+        const giftProducts =
+            promo.gift_products || [];
+
+        promoModalContent.innerHTML = `
+
+            ${
+                promo.description
+                    ? `
+                        <div class="promo-modal-description">
+                            ${escapeHtml(
+                                promo.description
+                            ).replace(
+                                /\n/g,
+                                "<br>"
+                            )}
+                        </div>
+                    `
+                    : ""
+            }
+
+            ${
+                conditionProducts.length
+                    ? `
+                        <div class="promo-modal-section">
+
+                            <h4>
+                                Условия акции
+                            </h4>
+
+                            <ul>
+                                ${
+                                    conditionProducts
+                                        .map(
+                                            function (item) {
+
+                                                return `
+                                                    <li>
+                                                        ${escapeHtml(
+                                                            item.name
+                                                        )}
+                                                        ${
+                                                            item.quantity
+                                                                ? ` — ${item.quantity} шт.`
+                                                                : ""
+                                                        }
+                                                    </li>
+                                                `;
+                                            }
+                                        )
+                                        .join("")
+                                }
+                            </ul>
+
+                        </div>
+                    `
+                    : ""
+            }
+
+            ${
+                giftProducts.length
+                    ? `
+                        <div class="promo-modal-section">
+
+                            <h4>
+                                Подарок
+                            </h4>
+
+                            <ul>
+                                ${
+                                    giftProducts
+                                        .map(
+                                            function (item) {
+
+                                                return `
+                                                    <li>
+                                                        ${escapeHtml(
+                                                            item.name
+                                                        )}
+                                                        — ${item.quantity} шт.
+                                                    </li>
+                                                `;
+                                            }
+                                        )
+                                        .join("")
+                                }
+                            </ul>
+
+                        </div>
+                    `
+                    : ""
+            }
+
+            ${
+                promo.discount_percent
+                    ? `
+                        <div class="promo-modal-section">
+                            <strong>
+                                Промо-скидка:
+                                ${escapeHtml(
+                                    promo.discount_percent
+                                )}%
+                            </strong>
+                        </div>
+                    `
+                    : ""
+            }
+        `;
+
+        promoModal.hidden = false;
+
+        document.body.classList.add(
+            "promo-modal-open"
+        );
+    }
+
+
+    function closePromoDetails() {
+
+        if (!promoModal) {
+            return;
+        }
+
+        promoModal.hidden = true;
+
+        document.body.classList.remove(
+            "promo-modal-open"
+        );
+    } 
+
 
     function updateNextStepState() {
 
@@ -2336,6 +2708,36 @@ function renderProducts(products) {
     );
 
 
+    if (promoModal) {
+
+        promoModal
+            .querySelectorAll(
+                "[data-promo-modal-close]"
+            )
+            .forEach(
+                function (element) {
+
+                    element.addEventListener(
+                        "click",
+                        closePromoDetails
+                    );
+                }
+            );
+    }
+
+    document.addEventListener(
+        "keydown",
+        function (event) {
+
+            if (
+                event.key === "Escape"
+                && promoModal
+                && !promoModal.hidden
+            ) {
+                closePromoDetails();
+            }
+        }
+    );
 
     if (customerSelect) {
 
@@ -2469,6 +2871,9 @@ function renderProducts(products) {
             loadProducts();
         }
 
+        if (step === 3) {
+            loadPromotions();
+        }
 
         if (step === 5) {
             updateConfirmation();

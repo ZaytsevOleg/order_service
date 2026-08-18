@@ -768,3 +768,195 @@
     gap: 10px;
 }
 
+/* =========================================================
+   Шаг Промо
+   ========================================================= */
+.promo-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(280px, 1fr)
+        );
+
+    gap: 20px;
+}
+
+.promo-card {
+    overflow: hidden;
+
+    background:
+        var(--brand-surface);
+
+    border:
+        1px solid
+        var(--brand-border);
+
+    border-radius: 18px;
+}
+
+.promo-card-image-wrap {
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+
+    background:
+        var(--brand-control-bg);
+}
+
+.promo-card-image {
+    width: 100%;
+    height: 100%;
+
+    display: block;
+
+    object-fit: cover;
+}
+
+.promo-card-body {
+    padding: 18px;
+}
+
+.promo-card-body h3 {
+    margin: 0;
+
+    color:
+        var(--brand-text);
+
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+.promo-card-description {
+    margin:
+        10px 0 0;
+
+    color:
+        var(--brand-muted);
+
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.promo-card-validity {
+    margin-top: 12px;
+
+    color:
+        var(--brand-primary);
+
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.promo-card-actions {
+    margin-top: 16px;
+}
+
+.promo-modal[hidden] {
+    display: none;
+}
+
+.promo-modal {
+    position: fixed;
+    inset: 0;
+
+    z-index: 1000;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 24px;
+}
+
+.promo-modal-backdrop {
+    position: absolute;
+    inset: 0;
+
+    background:
+        rgba(0, 0, 0, 0.42);
+}
+
+.promo-modal-dialog {
+    position: relative;
+    z-index: 1;
+
+    width: min(
+        620px,
+        100%
+    );
+
+    max-height:
+        calc(100vh - 48px);
+
+    overflow-y: auto;
+
+    padding: 28px;
+
+    background:
+        var(--brand-surface);
+
+    border-radius: 20px;
+
+    box-shadow:
+        0 20px 60px
+        rgba(0, 0, 0, 0.18);
+}
+
+.promo-modal-close {
+    position: absolute;
+
+    top: 14px;
+    right: 14px;
+
+    width: 34px;
+    height: 34px;
+
+    border: none;
+    background: transparent;
+
+    color:
+        var(--brand-muted);
+
+    cursor: pointer;
+}
+
+.promo-modal-title {
+    margin:
+        0 42px 18px 0;
+
+    color:
+        var(--brand-text);
+
+    font-size: 22px;
+    font-weight: 500;
+}
+
+.promo-modal-content {
+    color:
+        var(--brand-text);
+
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.promo-modal-section {
+    margin-top: 22px;
+}
+
+.promo-modal-section h4 {
+    margin:
+        0 0 10px;
+
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.promo-modal-section ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+body.promo-modal-open {
+    overflow: hidden;
+}   
