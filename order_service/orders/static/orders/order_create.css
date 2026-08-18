@@ -960,3 +960,42 @@
 body.promo-modal-open {
     overflow: hidden;
 }   
+
+.promo-card-status {
+    margin-top: 14px;
+
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.promo-card-status-success {
+    color: var(--brand-primary);
+}
+
+.promo-card-progress {
+    margin-top: 14px;
+
+    padding: 10px 12px;
+
+    background:
+        var(--brand-control-bg);
+
+    border-radius: 10px;
+
+    color:
+        var(--brand-muted);
+
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.promo-progress-item + .promo-progress-item {
+    margin-top: 5px;
+}
+
+.promo-card-progress strong {
+    color:
+        var(--brand-text);
+
+    font-weight: 600;
+}

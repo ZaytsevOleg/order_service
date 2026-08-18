@@ -489,6 +489,9 @@
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
+    let promotionEvaluations =
+        new Map();
+
     let currentStep = 1;
 
     const steps = document.querySelectorAll(
@@ -1889,6 +1892,8 @@ function renderProducts(products) {
                 );
             }
 
+            await evaluatePromotions();
+
             renderPromotions(
                 data.promotions
             );
@@ -1954,6 +1959,17 @@ function renderProducts(products) {
                         )
                         : "";
 
+                const evaluation =
+                    promotionEvaluations.get(
+                        String(
+                            promo.promo_id
+                        )
+                    ) || null;
+
+                const isEligible =
+                    evaluation
+                    && evaluation.eligible === true;                        
+
                 card.innerHTML = `
 
                     ${
@@ -1995,6 +2011,19 @@ function renderProducts(products) {
                                 `
                                 : ""
                         }
+
+                        ${
+                            isEligible
+                                ? `
+                                    <div class="promo-card-status promo-card-status-success">
+                                        Условия акции выполнены
+                                    </div>
+                                `
+                                : renderPromoProgress(
+                                    promo,
+                                    evaluation
+                                )
+                        }                        
 
                         ${
                             validToText
@@ -2041,6 +2070,116 @@ function renderProducts(products) {
                 );
             }
         );
+    }
+
+    function renderPromoProgress(
+        promo,
+        evaluation
+    ) {
+
+        if (
+            !evaluation
+            || !promo.show_progress
+        ) {
+            return "";
+        }
+
+        if (
+            evaluation.condition_type
+            === "fixed_set"
+        ) {
+
+            if (
+                !evaluation.missing
+                || !evaluation.missing.length
+            ) {
+                return "";
+            }
+
+            const rows =
+                evaluation.missing
+                    .map(
+                        function (item) {
+
+                            return `
+                                <div class="promo-progress-item">
+                                    До акции не хватает:
+                                    <strong>
+                                        ${escapeHtml(
+                                            item.name
+                                        )}
+                                        — ${item.missing} шт.
+                                    </strong>
+                                </div>
+                            `;
+                        }
+                    )
+                    .join("");
+
+            return `
+                <div class="promo-card-progress">
+                    ${rows}
+                </div>
+            `;
+        }
+
+
+        if (
+            evaluation.condition_type
+            === "total_quantity"
+            && evaluation.progress
+        ) {
+
+            return `
+                <div class="promo-card-progress">
+                    Добавлено
+                    <strong>
+                        ${evaluation.progress.current}
+                    </strong>
+                    из
+                    <strong>
+                        ${evaluation.progress.required}
+                    </strong>
+                    товаров.
+
+                    Осталось:
+                    <strong>
+                        ${evaluation.progress.missing}
+                    </strong>
+                </div>
+            `;
+        }
+
+
+        if (
+            evaluation.condition_type
+            === "total_amount"
+            && evaluation.progress
+        ) {
+
+            return `
+                <div class="promo-card-progress">
+                    Товаров акции:
+                    <strong>
+                        ${formatMoney(
+                            evaluation.progress.current
+                        )}
+                    </strong>
+
+                    <br>
+
+                    До выполнения:
+                    <strong>
+                        ${formatMoney(
+                            evaluation.progress.missing
+                        )}
+                    </strong>
+                </div>
+            `;
+        }
+
+
+        return "";
     }
 
     function openPromoDetails(promo) {
@@ -2822,6 +2961,108 @@ function renderProducts(products) {
             }
         }
     );
+
+    function getCsrfToken() {
+
+        const input =
+            document.querySelector(
+                'input[name="csrfmiddlewaretoken"]'
+            );
+
+        return input
+            ? input.value
+            : "";
+    }
+
+    async function evaluatePromotions() {
+
+        if (
+            !customerSelect
+            || !contractSelect
+        ) {
+            return;
+        }
+
+        const customerId =
+            customerSelect.value;
+
+        const contractId =
+            contractSelect.value;
+
+        if (
+            !customerId
+            || !contractId
+        ) {
+            promotionEvaluations.clear();
+            return;
+        }
+
+        const items = Array.from(
+            cart.values()
+        ).map(
+            function (item) {
+                return {
+                    product_id:
+                        item.product_id,
+
+                    quantity:
+                        item.quantity,
+                };
+            }
+        );
+
+        const response = await fetch(
+            `/orders/api/customer/${customerId}/promotions/evaluate/`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json",
+
+                    "X-CSRFToken":
+                        getCsrfToken(),
+
+                    "X-Requested-With":
+                        "XMLHttpRequest",
+                },
+
+                body: JSON.stringify(
+                    {
+                        contract_id:
+                            contractId,
+
+                        items:
+                            items,
+                    }
+                ),
+            }
+        );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error
+                || `HTTP ${response.status}`
+            );
+        }
+
+        promotionEvaluations.clear();
+
+        data.promotions.forEach(
+            function (evaluation) {
+
+                promotionEvaluations.set(
+                    String(
+                        evaluation.promo_id
+                    ),
+                    evaluation
+                );
+            }
+        );
+    }
 
     function showStep(step) {
 

@@ -1448,3 +1448,479 @@ def evaluate_promotions(
                 evaluations,
         }
     )
+
+
+@login_required
+@require_POST
+def apply_promotion(
+    request,
+    customer_id,
+):
+
+    # =========================================================
+    # JSON
+    # =========================================================
+
+    try:
+        payload = json.loads(
+            request.body.decode("utf-8")
+        )
+
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+    ):
+        return JsonResponse(
+            {
+                "error": "Некорректный JSON.",
+            },
+            status=400,
+        )
+
+
+    contract_id = str(
+        payload.get(
+            "contract_id",
+            "",
+        )
+    ).strip()
+
+    promo_id = str(
+        payload.get(
+            "promo_id",
+            "",
+        )
+    ).strip()
+
+    raw_items = (
+        payload.get("items")
+        or []
+    )
+
+
+    if not contract_id:
+        return JsonResponse(
+            {
+                "error": "Не указан договор.",
+            },
+            status=400,
+        )
+
+
+    if not promo_id:
+        return JsonResponse(
+            {
+                "error": "Не указана промо акция.",
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Доступ пользователя
+    # =========================================================
+
+    access = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            legal_entity_id=customer_id,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+        .select_related(
+            "price_type",
+        )
+        .first()
+    )
+
+
+    if access is None:
+        return JsonResponse(
+            {
+                "error": "Клиент недоступен.",
+            },
+            status=403,
+        )
+
+
+    if access.price_type_id is None:
+        return JsonResponse(
+            {
+                "error": (
+                    "Для клиента не назначен "
+                    "тип цен."
+                ),
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Договор
+    # =========================================================
+
+    contract = (
+        Contract.objects
+        .filter(
+            contract_id=contract_id,
+            legal_entity_id=customer_id,
+            brand=request.brand.brand_id,
+            is_active=True,
+        )
+        .first()
+    )
+
+
+    if contract is None:
+        return JsonResponse(
+            {
+                "error": (
+                    "Договор не найден "
+                    "или недоступен."
+                ),
+            },
+            status=404,
+        )
+
+
+    # =========================================================
+    # Промо
+    # =========================================================
+
+    now = timezone.now()
+
+
+    promo = (
+        PromoAction.objects
+        .filter(
+            pk=promo_id,
+            brand_id=contract.brand,
+            is_active=True,
+        )
+        .filter(
+            Q(valid_from__isnull=True)
+            | Q(valid_from__lte=now)
+        )
+        .filter(
+            Q(valid_to__isnull=True)
+            | Q(valid_to__gte=now)
+        )
+        .prefetch_related(
+            Prefetch(
+                "condition_products",
+                queryset=(
+                    PromoActionProduct.objects
+                    .select_related(
+                        "product"
+                    )
+                ),
+            ),
+            Prefetch(
+                "gift_products",
+                queryset=(
+                    PromoGiftProduct.objects
+                    .select_related(
+                        "product"
+                    )
+                ),
+            ),
+        )
+        .first()
+    )
+
+
+    if promo is None:
+        return JsonResponse(
+            {
+                "error": (
+                    "Промо акция недоступна "
+                    "или срок её действия истёк."
+                ),
+            },
+            status=404,
+        )
+
+
+    # =========================================================
+    # Нормализуем корзину
+    # =========================================================
+
+    quantities_by_product = {}
+
+
+    for item in raw_items:
+
+        if not isinstance(
+            item,
+            dict,
+        ):
+            continue
+
+
+        product_id = str(
+            item.get(
+                "product_id",
+                "",
+            )
+        ).strip()
+
+
+        try:
+            quantity = int(
+                item.get(
+                    "quantity",
+                    0,
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+            quantity = 0
+
+
+        if (
+            not product_id
+            or quantity <= 0
+        ):
+            continue
+
+
+        quantities_by_product[
+            product_id
+        ] = (
+            quantities_by_product.get(
+                product_id,
+                0,
+            )
+            + quantity
+        )
+
+
+    # =========================================================
+    # Актуальный курс
+    # =========================================================
+
+    today = timezone.localdate()
+
+    currency_rate_row = (
+        CurrencyRate.objects
+        .filter(
+            currency_code="YE",
+            valid_from__lte=today,
+        )
+        .order_by(
+            "-valid_from",
+            "-id",
+        )
+        .first()
+    )
+
+
+    if currency_rate_row is None:
+        return JsonResponse(
+            {
+                "error": (
+                    "Не найден действующий "
+                    "курс валюты YE."
+                ),
+            },
+            status=500,
+        )
+
+
+    currency_rate = (
+        currency_rate_row.rate
+    )
+
+
+    # =========================================================
+    # Базовые цены корзины
+    # =========================================================
+
+    product_ids = list(
+        quantities_by_product.keys()
+    )
+
+    prices = (
+        Price.objects
+        .filter(
+            price_type_id=(
+                access.price_type_id
+            ),
+            product_id__in=product_ids,
+            product__brand_id=contract.brand,
+            product__is_active=True,
+        )
+        .select_related(
+            "product"
+        )
+    )
+
+
+    prices_by_product = {
+        str(row.product_id): row
+        for row in prices
+    }
+
+
+    cart_items = []
+
+
+    for (
+        product_id,
+        quantity,
+    ) in quantities_by_product.items():
+
+        price_row = (
+            prices_by_product.get(
+                product_id
+            )
+        )
+
+        if price_row is None:
+            continue
+
+
+        base_price_rub = (
+            Decimal(
+                str(price_row.price)
+            )
+            * Decimal(
+                str(currency_rate)
+            )
+        ).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+
+
+        cart_items.append(
+            {
+                "product_id":
+                    product_id,
+
+                "quantity":
+                    quantity,
+
+                "base_price":
+                    base_price_rub,
+            }
+        )
+
+
+    # =========================================================
+    # Повторно проверяем выполнение акции
+    # =========================================================
+
+    evaluation = (
+        PromoEngine.evaluate(
+            promo,
+            cart_items,
+        )
+    )
+
+
+    if not evaluation.get(
+        "eligible",
+        False,
+    ):
+        return JsonResponse(
+            {
+                "error": (
+                    "Условия промо акции "
+                    "не выполнены."
+                ),
+
+                "evaluation":
+                    evaluation,
+            },
+            status=409,
+        )
+
+
+    # =========================================================
+    # Подарочная акция
+    # =========================================================
+
+    gifts = []
+
+
+    if (
+        promo.reward_type
+        == PromoAction.REWARD_GIFT
+    ):
+
+        for row in (
+            promo.gift_products.all()
+        ):
+
+            gifts.append(
+                {
+                    "product_id": str(
+                        row.product_id
+                    ),
+
+                    "article": (
+                        row.product.article
+                        or ""
+                    ),
+
+                    "name": (
+                        row.product.name
+                        or ""
+                    ),
+
+                    "quantity":
+                        row.quantity,
+
+                    "price":
+                        "0.00",
+
+                    "base_price":
+                        "0.00",
+
+                    "discount_percent":
+                        "0.00",
+
+                    "is_promo_gift":
+                        True,
+
+                    "promo_id": str(
+                        promo.pk
+                    ),
+
+                    "promo_name":
+                        promo.name,
+                }
+            )
+
+
+    # =========================================================
+    # Скидочную механику подключим следующим этапом
+    # =========================================================
+
+    return JsonResponse(
+        {
+            "promo_id": str(
+                promo.pk
+            ),
+
+            "promo_name":
+                promo.name,
+
+            "reward_type":
+                promo.reward_type,
+
+            "eligible":
+                True,
+
+            "gifts":
+                gifts,
+
+            "discount":
+                None,
+        }
+    )
