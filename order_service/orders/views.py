@@ -701,7 +701,7 @@ def customer_promotions(request, customer_id):
     contract = (
         Contract.objects
         .filter(
-            contract_id=contract_id,
+            pk=contract_id,
             legal_entity_id=customer_id,
             brand=request.brand.brand_id,
             is_active=True,
@@ -1060,7 +1060,7 @@ def evaluate_promotions(
     contract = (
         Contract.objects
         .filter(
-            contract_id=contract_id,
+            pk=contract_id,
             legal_entity_id=customer_id,
             brand=request.brand.brand_id,
             is_active=True,
@@ -1585,7 +1585,7 @@ def apply_promotion(
     contract = (
         Contract.objects
         .filter(
-            contract_id=contract_id,
+            pk=contract_id,
             legal_entity_id=customer_id,
             brand=request.brand.brand_id,
             is_active=True,
