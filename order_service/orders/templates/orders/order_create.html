@@ -3153,6 +3153,50 @@ function renderProducts(products) {
                         ".cart-item-remove"
                     );
 
+                const minusButton =
+                    element.querySelector(
+                        ".cart-quantity-minus"
+                    );
+
+                const plusButton =
+                    element.querySelector(
+                        ".cart-quantity-plus"
+                    );
+
+                const quantityInput =
+                    element.querySelector(
+                        ".cart-quantity-input"
+                    );
+
+
+                // =====================================================
+                // Обычный товар — разрешаем удалить
+                // =====================================================
+
+                if (
+                    !isPromoItem
+                    && removeButton
+                ) {
+
+                    removeButton.addEventListener(
+                        "click",
+                        function () {
+
+                            cart.delete(
+                                cartKey
+                            );
+
+                            updateCartSummary();
+                        }
+                    );
+                }
+
+
+                // =====================================================
+                // Обычный товар — изменение количества
+                // Promo-строки read-only
+                // =====================================================
+
                 if (
                     !isPromoItem
                     && minusButton
@@ -3166,107 +3210,6 @@ function renderProducts(products) {
 
                             const current =
                                 cart.get(
-                                    productId
-                                );
-
-                            if (!current) {
-                                return;
-                            }
-
-                            if (
-                                current.quantity <= 1
-                            ) {
-                                cart.delete(
-                                    productId
-                                );
-                            } else {
-                                current.quantity -= 1;
-                            }
-
-                            updateCartSummary();
-                        }
-                    );
-
-
-                    plusButton.addEventListener(
-                        "click",
-                        function () {
-
-                            const current =
-                                cart.get(
-                                    productId
-                                );
-
-                            if (!current) {
-                                return;
-                            }
-
-                            current.quantity += 1;
-
-                            updateCartSummary();
-                        }
-                    );
-
-
-                    quantityInput.addEventListener(
-                        "change",
-                        function () {
-
-                            const current =
-                                cart.get(
-                                    productId
-                                );
-
-                            if (!current) {
-                                return;
-                            }
-
-                            const value =
-                                Math.floor(
-                                    Number(
-                                        quantityInput.value
-                                    )
-                                );
-
-                            if (
-                                !Number.isFinite(value)
-                                || value <= 0
-                            ) {
-                                cart.delete(
-                                    productId
-                                );
-                            } else {
-                                current.quantity =
-                                    value;
-                            }
-
-                            updateCartSummary();
-                        }
-                    );
-                }
-
-                if (removeButton) {
-
-                    removeButton.addEventListener(
-                        "click",
-                        function () {
-
-                            cart.delete(
-                                productId
-                            );
-
-                            updateCartSummary();
-                        }
-                    );
-                }
-
-                if (minusButton) {
-                    minusButton.addEventListener(
-                        "click",
-                        function () {
-
-                            const current =
-                                cart.get(
                                     cartKey
                                 );
 
@@ -3277,19 +3220,21 @@ function renderProducts(products) {
                             if (
                                 current.quantity <= 1
                             ) {
+
                                 cart.delete(
                                     cartKey
                                 );
+
                             } else {
+
                                 current.quantity -= 1;
                             }
 
                             updateCartSummary();
                         }
                     );
-                }
 
-                if (plusButton) {
+
                     plusButton.addEventListener(
                         "click",
                         function () {
@@ -3308,9 +3253,8 @@ function renderProducts(products) {
                             updateCartSummary();
                         }
                     );
-                }
 
-                if (quantityInput) {
+
                     quantityInput.addEventListener(
                         "change",
                         function () {
@@ -3335,10 +3279,13 @@ function renderProducts(products) {
                                 !Number.isFinite(value)
                                 || value <= 0
                             ) {
+
                                 cart.delete(
                                     cartKey
                                 );
+
                             } else {
+
                                 current.quantity =
                                     value;
                             }
@@ -3347,6 +3294,7 @@ function renderProducts(products) {
                         }
                     );
                 }
+
 
                 cartItems.appendChild(
                     element
