@@ -2400,6 +2400,14 @@ function renderProducts(products) {
         const promoName =
             data.promo_name || "";
 
+        const promoQuantity =
+            Math.max(
+                1,
+                Number(
+                    data.promo_quantity
+                ) || 1
+            );
+
         const existingPromo =
             appliedPromotions.get(
                 promoId
