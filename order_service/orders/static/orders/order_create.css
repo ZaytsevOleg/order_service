@@ -999,3 +999,16 @@ body.promo-modal-open {
 
     font-weight: 600;
 }
+
+.cart-promo-quantity {
+    min-width: 70px;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    text-align: center;
+}
+
+.cart-item.is-promo-item {
+    background: #fafafa;
+}

@@ -612,6 +612,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const cart = new Map();    
 
+    const appliedPromotions =
+        new Map();
+
     async function loadCustomerOptions() {
 
         if (
@@ -2397,6 +2400,33 @@ function renderProducts(products) {
         const promoName =
             data.promo_name || "";
 
+        const existingPromo =
+            appliedPromotions.get(
+                promoId
+            );
+
+        if (existingPromo) {
+
+            existingPromo.quantity +=
+                promoQuantity;
+
+        } else {
+
+            appliedPromotions.set(
+                promoId,
+                {
+                    promo_id:
+                        promoId,
+
+                    promo_name:
+                        promoName,
+
+                    quantity:
+                        promoQuantity,
+                }
+            );
+        }            
+
         const rewardType =
             data.reward_type || "";
 
@@ -2937,6 +2967,12 @@ function renderProducts(products) {
                     );
                 }
 
+                const isPromoItem =
+                    Boolean(
+                        item.is_promo_product
+                        || item.is_promo_gift
+                    );
+
                 element.innerHTML = `
                     <div class="cart-item-main">
 
@@ -2992,9 +3028,8 @@ function renderProducts(products) {
                     </div>
 
                     ${
-                        isPromoGift
-                            ? ""
-                            : `
+                        !isPromoItem
+                            ? `
                                 <button
                                     type="button"
                                     class="cart-item-remove"
@@ -3003,6 +3038,7 @@ function renderProducts(products) {
                                     <i class="bi bi-x-lg"></i>
                                 </button>
                             `
+                            : ""
                     }
 
                     <div class="cart-item-bottom">
@@ -3015,31 +3051,41 @@ function renderProducts(products) {
                                     </div>
                                 `
                                 : `
-                                    <div class="cart-item-quantity">
+                                    ${
+                                        isPromoItem
+                                            ? `
+                                                <div class="cart-promo-quantity">
+                                                    ${item.quantity} шт.
+                                                </div>
+                                            `
+                                            : `
+                                                <div class="cart-item-quantity">
 
-                                        <button
-                                            type="button"
-                                            class="cart-quantity-minus"
-                                        >
-                                            −
-                                        </button>
+                                                    <button
+                                                        type="button"
+                                                        class="cart-quantity-minus"
+                                                    >
+                                                        −
+                                                    </button>
 
-                                        <input
-                                            type="number"
-                                            class="cart-quantity-input"
-                                            value="${item.quantity}"
-                                            min="1"
-                                            step="1"
-                                        >
+                                                    <input
+                                                        type="number"
+                                                        class="cart-quantity-input"
+                                                        value="${item.quantity}"
+                                                        min="1"
+                                                        step="1"
+                                                    >
 
-                                        <button
-                                            type="button"
-                                            class="cart-quantity-plus"
-                                        >
-                                            +
-                                        </button>
+                                                    <button
+                                                        type="button"
+                                                        class="cart-quantity-plus"
+                                                    >
+                                                        +
+                                                    </button>
 
-                                    </div>
+                                                </div>
+                                            `
+                                    }
                                 `
                         }
 
@@ -3099,28 +3145,106 @@ function renderProducts(products) {
                         ".cart-item-remove"
                     );
 
-                const minusButton =
-                    element.querySelector(
-                        ".cart-quantity-minus"
+                if (
+                    !isPromoItem
+                    && minusButton
+                    && plusButton
+                    && quantityInput
+                ) {
+
+                    minusButton.addEventListener(
+                        "click",
+                        function () {
+
+                            const current =
+                                cart.get(
+                                    productId
+                                );
+
+                            if (!current) {
+                                return;
+                            }
+
+                            if (
+                                current.quantity <= 1
+                            ) {
+                                cart.delete(
+                                    productId
+                                );
+                            } else {
+                                current.quantity -= 1;
+                            }
+
+                            updateCartSummary();
+                        }
                     );
 
-                const plusButton =
-                    element.querySelector(
-                        ".cart-quantity-plus"
+
+                    plusButton.addEventListener(
+                        "click",
+                        function () {
+
+                            const current =
+                                cart.get(
+                                    productId
+                                );
+
+                            if (!current) {
+                                return;
+                            }
+
+                            current.quantity += 1;
+
+                            updateCartSummary();
+                        }
                     );
 
-                const quantityInput =
-                    element.querySelector(
-                        ".cart-quantity-input"
+
+                    quantityInput.addEventListener(
+                        "change",
+                        function () {
+
+                            const current =
+                                cart.get(
+                                    productId
+                                );
+
+                            if (!current) {
+                                return;
+                            }
+
+                            const value =
+                                Math.floor(
+                                    Number(
+                                        quantityInput.value
+                                    )
+                                );
+
+                            if (
+                                !Number.isFinite(value)
+                                || value <= 0
+                            ) {
+                                cart.delete(
+                                    productId
+                                );
+                            } else {
+                                current.quantity =
+                                    value;
+                            }
+
+                            updateCartSummary();
+                        }
                     );
+                }
 
                 if (removeButton) {
+
                     removeButton.addEventListener(
                         "click",
                         function () {
 
                             cart.delete(
-                                cartKey
+                                productId
                             );
 
                             updateCartSummary();
