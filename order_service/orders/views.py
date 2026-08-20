@@ -1492,10 +1492,20 @@ def apply_promotion(
         )
     ).strip()
 
-    raw_items = (
-        payload.get("items")
-        or []
-    )
+
+    try:
+        promo_quantity = int(
+            payload.get(
+                "quantity",
+                1,
+            )
+        )
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+        promo_quantity = 0
 
 
     if not contract_id:
@@ -1511,6 +1521,18 @@ def apply_promotion(
         return JsonResponse(
             {
                 "error": "Не указана промо акция.",
+            },
+            status=400,
+        )
+
+
+    if promo_quantity <= 0:
+        return JsonResponse(
+            {
+                "error": (
+                    "Количество промо должно "
+                    "быть больше нуля."
+                ),
             },
             status=400,
         )
@@ -1585,7 +1607,7 @@ def apply_promotion(
 
 
     # =========================================================
-    # Промо
+    # Действующая акция
     # =========================================================
 
     now = timezone.now()
@@ -1614,14 +1636,21 @@ def apply_promotion(
                     .select_related(
                         "product"
                     )
+                    .order_by(
+                        "product__name"
+                    )
                 ),
             ),
+
             Prefetch(
                 "gift_products",
                 queryset=(
                     PromoGiftProduct.objects
                     .select_related(
                         "product"
+                    )
+                    .order_by(
+                        "product__name"
                     )
                 ),
             ),
@@ -1643,67 +1672,130 @@ def apply_promotion(
 
 
     # =========================================================
-    # Нормализуем корзину
+    # Автоматически можно добавить только fixed_set
     # =========================================================
 
-    quantities_by_product = {}
+    if (
+        promo.condition_type
+        != PromoAction.CONDITION_FIXED_SET
+    ):
+        return JsonResponse(
+            {
+                "error": (
+                    "Эта промо акция требует "
+                    "самостоятельного выбора товаров."
+                ),
 
-
-    for item in raw_items:
-
-        if not isinstance(
-            item,
-            dict,
-        ):
-            continue
-
-
-        product_id = str(
-            item.get(
-                "product_id",
-                "",
-            )
-        ).strip()
-
-
-        try:
-            quantity = int(
-                item.get(
-                    "quantity",
-                    0,
-                )
-            )
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-            quantity = 0
-
-
-        if (
-            not product_id
-            or quantity <= 0
-        ):
-            continue
-
-
-        quantities_by_product[
-            product_id
-        ] = (
-            quantities_by_product.get(
-                product_id,
-                0,
-            )
-            + quantity
+                "condition_type":
+                    promo.condition_type,
+            },
+            status=409,
         )
 
 
     # =========================================================
-    # Актуальный курс
+    # Проверяем состав fixed_set
+    # =========================================================
+
+    condition_rows = list(
+        promo.condition_products.all()
+    )
+
+
+    if not condition_rows:
+        return JsonResponse(
+            {
+                "error": (
+                    "Для промо акции "
+                    "не задан состав товаров."
+                ),
+            },
+            status=500,
+        )
+
+
+    for row in condition_rows:
+
+        if (
+            row.quantity is None
+            or row.quantity <= 0
+        ):
+            return JsonResponse(
+                {
+                    "error": (
+                        "Для одного из товаров "
+                        "промо акции не указано "
+                        "необходимое количество."
+                    ),
+                },
+                status=500,
+            )
+
+
+    # =========================================================
+    # Базовые цены товаров промо
+    #
+    # Не доверяем frontend.
+    # =========================================================
+
+    product_ids = [
+        str(row.product_id)
+        for row in condition_rows
+    ]
+
+
+    prices = (
+        Price.objects
+        .filter(
+            price_type_id=(
+                access.price_type_id
+            ),
+            product_id__in=product_ids,
+            product__brand_id=contract.brand,
+            product__is_active=True,
+        )
+        .select_related(
+            "product",
+        )
+    )
+
+
+    prices_by_product = {
+        str(row.product_id):
+            row
+        for row in prices
+    }
+
+
+    missing_price_products = [
+        row.product.name
+        for row in condition_rows
+        if str(row.product_id)
+        not in prices_by_product
+    ]
+
+
+    if missing_price_products:
+        return JsonResponse(
+            {
+                "error": (
+                    "Для части товаров промо "
+                    "не найдены актуальные цены."
+                ),
+
+                "products":
+                    missing_price_products,
+            },
+            status=409,
+        )
+
+
+    # =========================================================
+    # Курс YE
     # =========================================================
 
     today = timezone.localdate()
+
 
     currency_rate_row = (
         CurrencyRate.objects
@@ -1731,166 +1823,130 @@ def apply_promotion(
         )
 
 
-    currency_rate = (
-        currency_rate_row.rate
-    )
-
-
-    # =========================================================
-    # Базовые цены корзины
-    # =========================================================
-
-    product_ids = list(
-        quantities_by_product.keys()
-    )
-
-    prices = (
-        Price.objects
-        .filter(
-            price_type_id=(
-                access.price_type_id
-            ),
-            product_id__in=product_ids,
-            product__brand_id=contract.brand,
-            product__is_active=True,
-        )
-        .select_related(
-            "product"
+    currency_rate = Decimal(
+        str(
+            currency_rate_row.rate
         )
     )
 
 
-    prices_by_product = {
-        str(row.product_id): row
-        for row in prices
-    }
+    # =========================================================
+    # Формируем платный состав промо
+    # =========================================================
+
+    products = []
 
 
-    cart_items = []
-
-
-    for (
-        product_id,
-        quantity,
-    ) in quantities_by_product.items():
+    for row in condition_rows:
 
         price_row = (
-            prices_by_product.get(
-                product_id
-            )
+            prices_by_product[
+                str(row.product_id)
+            ]
         )
-
-        if price_row is None:
-            continue
 
 
         base_price_rub = (
             Decimal(
-                str(price_row.price)
+                str(
+                    price_row.price
+                )
             )
-            * Decimal(
-                str(currency_rate)
-            )
+            * currency_rate
         ).quantize(
             Decimal("0.01"),
             rounding=ROUND_HALF_UP,
         )
 
 
-        cart_items.append(
+        # Обычная скидка клиента.
+        #
+        # Для подарочной акции она остаётся обычной.
+        # Для скидочной акции ниже заменим её
+        # на промо-скидку.
+        customer_discount = (
+            access.discount_percent
+            or Decimal("0.00")
+        )
+
+
+        applied_discount = (
+            customer_discount
+        )
+
+
+        if (
+            promo.reward_type
+            == PromoAction.REWARD_DISCOUNT
+        ):
+
+            applied_discount = (
+                promo.discount_percent
+                or Decimal("0.00")
+            )
+
+
+        final_price = (
+            base_price_rub
+            * (
+                Decimal("100.00")
+                - applied_discount
+            )
+            / Decimal("100.00")
+        ).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+
+
+        products.append(
             {
-                "product_id":
-                    product_id,
+                "product_id": str(
+                    row.product_id
+                ),
 
-                "quantity":
-                    quantity,
+                "article": (
+                    row.product.article
+                    or ""
+                ),
 
-                "base_price":
-                    base_price_rub,
+                "name": (
+                    row.product.name
+                    or ""
+                ),
+
+                "quantity": (
+                    row.quantity
+                    * promo_quantity
+                ),
+
+                "base_price": str(
+                    base_price_rub
+                ),
+
+                "discount_percent": str(
+                    applied_discount
+                ),
+
+                "final_price": str(
+                    final_price
+                ),
+
+                "promo_id": str(
+                    promo.pk
+                ),
+
+                "promo_name":
+                    promo.name,
+
+                "is_promo_product":
+                    True,
             }
         )
 
 
     # =========================================================
-    # Повторно проверяем выполнение акции
-    # =========================================================
-
-    evaluation = (
-        PromoEngine.evaluate(
-            promo,
-            cart_items,
-        )
-    )
-
-    try:
-        applications = int(
-            payload.get(
-                "applications",
-                1,
-            )
-        )
-    except (
-        TypeError,
-        ValueError,
-    ):
-        applications = 1
-
-    applications = max(
-        1,
-        applications,
-    )
-
-
-    eligible = bool(
-        evaluation.get(
-            "eligible",
-            False,
-        )
-    )
-
-    max_applications = int(
-        evaluation.get(
-            "max_applications",
-            0,
-        )
-    )
-
-    if not eligible:
-        return JsonResponse(
-            {
-                "error": (
-                    "Условия промо акции "
-                    "не выполнены."
-                ),
-
-                "evaluation":
-                    evaluation,
-            },
-            status=409,
-        )
-
-    if applications > max_applications:
-        return JsonResponse(
-            {
-                "error": (
-                    "Запрошено слишком большое "
-                    "количество применений акции."
-                ),
-
-                "applications":
-                    applications,
-
-                "max_applications":
-                    max_applications,
-
-                "evaluation":
-                    evaluation,
-            },
-            status=409,
-        )    
-
-    # =========================================================
-    # Подарочная акция
+    # Подарки
     # =========================================================
 
     gifts = []
@@ -1923,7 +1979,7 @@ def apply_promotion(
 
                     "quantity": (
                         row.quantity
-                        * applications
+                        * promo_quantity
                     ),
 
                     "price":
@@ -1935,6 +1991,9 @@ def apply_promotion(
                     "discount_percent":
                         "0.00",
 
+                    "final_price":
+                        "0.00",
+
                     "is_promo_gift":
                         True,
 
@@ -1944,15 +2003,12 @@ def apply_promotion(
 
                     "promo_name":
                         promo.name,
-
-                    "promo_applications":
-                        applications,
                 }
             )
 
 
     # =========================================================
-    # Скидочную механику подключим следующим этапом
+    # Ответ
     # =========================================================
 
     return JsonResponse(
@@ -1964,22 +2020,28 @@ def apply_promotion(
             "promo_name":
                 promo.name,
 
+            "promo_quantity":
+                promo_quantity,
+
+            "condition_type":
+                promo.condition_type,
+
             "reward_type":
                 promo.reward_type,
 
-            "eligible":
-                True,
+            "discount_percent": (
+                str(
+                    promo.discount_percent
+                )
+                if promo.discount_percent
+                is not None
+                else None
+            ),
 
-            "applications":
-                applications,
-
-            "max_applications":
-                max_applications,
+            "products":
+                products,
 
             "gifts":
                 gifts,
-
-            "discount":
-                None,
         }
     )
