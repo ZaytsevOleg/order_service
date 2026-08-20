@@ -603,11 +603,12 @@ document.addEventListener("DOMContentLoaded", function () {
             "cartItems"
         );
 
+    let currentPromotions = [];
+
     const confirmAmount =
         document.getElementById(
             "confirmAmount"
         );
-
 
     const cart = new Map();    
 
@@ -1892,10 +1893,13 @@ function renderProducts(products) {
                 );
             }
 
+            currentPromotions =
+                data.promotions || [];
+
             await evaluatePromotions();
 
             renderPromotions(
-                data.promotions
+                currentPromotions
             );
 
         } catch (error) {
@@ -1968,7 +1972,11 @@ function renderProducts(products) {
 
                 const isEligible =
                     evaluation
-                    && evaluation.eligible === true;                        
+                    && evaluation.eligible === true;
+
+                const isFixedSet =
+                    promo.condition_type
+                    === "fixed_set";
 
                 card.innerHTML = `
 
@@ -2023,7 +2031,7 @@ function renderProducts(products) {
                                     promo,
                                     evaluation
                                 )
-                        }                        
+                        }
 
                         ${
                             validToText
@@ -2045,6 +2053,66 @@ function renderProducts(products) {
                                 Подробнее
                             </button>
 
+                            ${
+                                isFixedSet
+                                    ? `
+                                        <div class="promo-add-control">
+
+                                            <span class="promo-add-label">
+                                                Количество промо
+                                            </span>
+
+                                            <div class="promo-add-row">
+
+                                                <div class="quantity-control">
+
+                                                    <button
+                                                        type="button"
+                                                        class="quantity-button promo-quantity-minus"
+                                                        disabled
+                                                        aria-label="Уменьшить количество промо"
+                                                    >
+                                                        −
+                                                    </button>
+
+                                                    <input
+                                                        type="number"
+                                                        class="promo-quantity-input"
+                                                        value="1"
+                                                        min="1"
+                                                        step="1"
+                                                        inputmode="numeric"
+                                                    >
+
+                                                    <button
+                                                        type="button"
+                                                        class="quantity-button promo-quantity-plus"
+                                                        aria-label="Увеличить количество промо"
+                                                    >
+                                                        +
+                                                    </button>
+
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    class="primary-btn promo-add-btn"
+                                                >
+                                                    Добавить
+                                                </button>
+
+                                            </div>
+
+                                        </div>
+                                    `
+                                    : `
+                                        <div class="promo-select-products-note">
+                                            Состав этой акции формируется
+                                            из выбранных вами товаров.
+                                        </div>
+                                    `
+                            }
+
                         </div>
 
                     </div>
@@ -2065,9 +2133,438 @@ function renderProducts(products) {
                     }
                 );
 
+                const promoAddButton =
+                    card.querySelector(
+                        ".promo-add-btn"
+                    );
+
+                const promoQuantityInput =
+                    card.querySelector(
+                        ".promo-quantity-input"
+                    );
+
+                const promoMinusButton =
+                    card.querySelector(
+                        ".promo-quantity-minus"
+                    );
+
+                const promoPlusButton =
+                    card.querySelector(
+                        ".promo-quantity-plus"
+                    );
+
+                if (
+                    promoQuantityInput
+                    && promoMinusButton
+                    && promoPlusButton
+                ) {
+
+                    function getPromoQuantity() {
+
+                        const value =
+                            Math.floor(
+                                Number(
+                                    promoQuantityInput.value
+                                ) || 1
+                            );
+
+                        return Math.max(
+                            1,
+                            value
+                        );
+                    }
+
+                    function setPromoQuantity(
+                        value
+                    ) {
+
+                        const quantity =
+                            Math.max(
+                                1,
+                                Math.floor(
+                                    Number(value)
+                                    || 1
+                                )
+                            );
+
+                        promoQuantityInput.value =
+                            String(quantity);
+
+                        promoMinusButton.disabled =
+                            quantity <= 1;
+                    }
+
+                    promoMinusButton.addEventListener(
+                        "click",
+                        function () {
+
+                            setPromoQuantity(
+                                getPromoQuantity()
+                                - 1
+                            );
+                        }
+                    );
+
+                    promoPlusButton.addEventListener(
+                        "click",
+                        function () {
+
+                            setPromoQuantity(
+                                getPromoQuantity()
+                                + 1
+                            );
+                        }
+                    );
+
+                    promoQuantityInput.addEventListener(
+                        "change",
+                        function () {
+
+                            setPromoQuantity(
+                                getPromoQuantity()
+                            );
+                        }
+                    );
+
+                    setPromoQuantity(1);
+                }
+
+                if (
+                    promoAddButton
+                    && promoQuantityInput
+                ) {
+
+                    promoAddButton.addEventListener(
+                        "click",
+                        async function () {
+
+                            const quantity =
+                                Math.max(
+                                    1,
+                                    Math.floor(
+                                        Number(
+                                            promoQuantityInput.value
+                                        ) || 1
+                                    )
+                                );
+
+                            const originalText =
+                                promoAddButton.textContent;
+
+                            promoAddButton.disabled =
+                                true;
+
+                            promoAddButton.textContent =
+                                "Добавление...";
+
+                            try {
+
+                                await addPromotionToCart(
+                                    promo,
+                                    quantity
+                                );
+
+                                promoAddButton.textContent =
+                                    "Добавлено";
+
+                                setTimeout(
+                                    function () {
+
+                                        promoAddButton.textContent =
+                                            originalText;
+
+                                        promoAddButton.disabled =
+                                            false;
+                                    },
+                                    900
+                                );
+
+                            } catch (error) {
+
+                                console.error(
+                                    "Ошибка добавления промо:",
+                                    error
+                                );
+
+                                promoAddButton.textContent =
+                                    originalText;
+
+                                promoAddButton.disabled =
+                                    false;
+
+                                alert(
+                                    error.message
+                                );
+                            }
+                        }
+                    );
+                }
+
                 promoCards.appendChild(
                     card
                 );
+            }
+        );
+    }
+
+    async function addPromotionToCart(
+        promo,
+        quantity
+    ) {
+
+        const customerId =
+            customerSelect
+                ? customerSelect.value
+                : "";
+
+        const contractId =
+            contractSelect
+                ? contractSelect.value
+                : "";
+
+        if (
+            !customerId
+            || !contractId
+        ) {
+            throw new Error(
+                "Не выбран клиент или договор."
+            );
+        }
+
+        const response = await fetch(
+            `/orders/api/customer/${customerId}/promotions/apply/`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json",
+
+                    "X-CSRFToken":
+                        getCsrfToken(),
+
+                    "X-Requested-With":
+                        "XMLHttpRequest",
+                },
+
+                body: JSON.stringify(
+                    {
+                        contract_id:
+                            contractId,
+
+                        promo_id:
+                            promo.promo_id,
+
+                        quantity:
+                            quantity,
+                    }
+                ),
+            }
+        );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error
+                || `HTTP ${response.status}`
+            );
+        }
+
+        addPromoResponseToCart(
+            data
+        );
+
+        updateCartSummary();
+
+        await evaluatePromotions();
+
+        renderPromotions(
+            currentPromotions
+        );
+    }
+
+    function addPromoResponseToCart(
+        data
+    ) {
+
+        const promoId =
+            String(
+                data.promo_id
+            );
+
+        const promoName =
+            data.promo_name || "";
+
+        const rewardType =
+            data.reward_type || "";
+
+        (
+            data.products || []
+        ).forEach(
+            function (item) {
+
+                const productId =
+                    String(
+                        item.product_id
+                    );
+
+                /*
+                 * Промо-товар храним отдельной строкой.
+                 * Это важно для скидочных акций:
+                 * тот же товар может одновременно
+                 * присутствовать в корзине с обычной
+                 * клиентской скидкой и с промо-скидкой.
+                 */
+                const cartKey =
+                    `promo-product:${promoId}:${productId}`;
+
+                if (cart.has(cartKey)) {
+
+                    const current =
+                        cart.get(cartKey);
+
+                    current.quantity +=
+                        Number(
+                            item.quantity
+                        ) || 0;
+
+                    current.price =
+                        Number(
+                            item.final_price
+                        ) || 0;
+
+                    current.base_price =
+                        Number(
+                            item.base_price
+                        ) || 0;
+
+                    current.discount_percent =
+                        Number(
+                            item.discount_percent
+                        ) || 0;
+
+                } else {
+
+                    cart.set(
+                        cartKey,
+                        {
+                            product_id:
+                                productId,
+
+                            name:
+                                item.name,
+
+                            article:
+                                item.article,
+
+                            price:
+                                Number(
+                                    item.final_price
+                                ) || 0,
+
+                            base_price:
+                                Number(
+                                    item.base_price
+                                ) || 0,
+
+                            discount_percent:
+                                Number(
+                                    item.discount_percent
+                                ) || 0,
+
+                            /*
+                             * apply_promotion пока не возвращает
+                             * складской остаток. Такие строки
+                             * отдельно проверим на backend
+                             * при оформлении заказа.
+                             */
+                            stock_quantity:
+                                Number.MAX_SAFE_INTEGER,
+
+                            quantity:
+                                Number(
+                                    item.quantity
+                                ) || 0,
+
+                            is_promo_product:
+                                true,
+
+                            promo_id:
+                                promoId,
+
+                            promo_name:
+                                promoName,
+
+                            promo_reward_type:
+                                rewardType,
+                        }
+                    );
+                }
+            }
+        );
+
+        (
+            data.gifts || []
+        ).forEach(
+            function (gift) {
+
+                const productId =
+                    String(
+                        gift.product_id
+                    );
+
+                const cartKey =
+                    `promo-gift:${promoId}:${productId}`;
+
+                if (cart.has(cartKey)) {
+
+                    const current =
+                        cart.get(cartKey);
+
+                    current.quantity +=
+                        Number(
+                            gift.quantity
+                        ) || 0;
+
+                } else {
+
+                    cart.set(
+                        cartKey,
+                        {
+                            product_id:
+                                productId,
+
+                            name:
+                                gift.name,
+
+                            article:
+                                gift.article,
+
+                            price: 0,
+                            base_price: 0,
+                            discount_percent: 0,
+
+                            stock_quantity:
+                                Number.MAX_SAFE_INTEGER,
+
+                            quantity:
+                                Number(
+                                    gift.quantity
+                                ) || 0,
+
+                            is_promo_gift:
+                                true,
+
+                            promo_id:
+                                promoId,
+
+                            promo_name:
+                                promoName,
+                        }
+                    );
+                }
             }
         );
     }
@@ -2383,7 +2880,6 @@ function renderProducts(products) {
 
         cartItems.innerHTML = "";
 
-
         if (cart.size === 0) {
 
             cartItems.innerHTML = `
@@ -2395,9 +2891,14 @@ function renderProducts(products) {
             return;
         }
 
-
         cart.forEach(
-            function (item, productId) {
+            function (item, cartKey) {
+
+                const isPromoGift =
+                    item.is_promo_gift === true;
+
+                const isPromoProduct =
+                    item.is_promo_product === true;
 
                 const stockQuantity =
                     Number(
@@ -2405,7 +2906,8 @@ function renderProducts(products) {
                     ) || 0;
 
                 const hasStockShortage =
-                    item.quantity
+                    !isPromoGift
+                    && item.quantity
                     > stockQuantity;
 
                 const shortageQuantity =
@@ -2423,6 +2925,18 @@ function renderProducts(products) {
                 element.className =
                     "cart-item";
 
+                if (isPromoGift) {
+                    element.classList.add(
+                        "cart-item-promo-gift"
+                    );
+                }
+
+                if (isPromoProduct) {
+                    element.classList.add(
+                        "cart-item-promo-product"
+                    );
+                }
+
                 element.innerHTML = `
                     <div class="cart-item-main">
 
@@ -2439,93 +2953,146 @@ function renderProducts(products) {
                         </div>
 
                         ${
-                                hasStockShortage
-                                    ? `
-                                        <div class="cart-item-stock-warning">
-                                            В наличии ${stockQuantity} шт.
-                                            Не хватает ${shortageQuantity} шт.
-                                        </div>
-                                    `
-                                    : ""
-                            }
+                            isPromoGift
+                                ? `
+                                    <div class="cart-item-promo-label">
+                                        Подарок по акции:
+                                        ${escapeHtml(
+                                            item.promo_name
+                                            || ""
+                                        )}
+                                    </div>
+                                `
+                                : (
+                                    isPromoProduct
+                                        ? `
+                                            <div class="cart-item-promo-label">
+                                                Товар по акции:
+                                                ${escapeHtml(
+                                                    item.promo_name
+                                                    || ""
+                                                )}
+                                            </div>
+                                        `
+                                        : ""
+                                )
+                        }
+
+                        ${
+                            hasStockShortage
+                                ? `
+                                    <div class="cart-item-stock-warning">
+                                        В наличии ${stockQuantity} шт.
+                                        Не хватает ${shortageQuantity} шт.
+                                    </div>
+                                `
+                                : ""
+                        }
 
                     </div>
 
-
-                    <button
-                        type="button"
-                        class="cart-item-remove"
-                        title="Удалить"
-                    >
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-
+                    ${
+                        isPromoGift
+                            ? ""
+                            : `
+                                <button
+                                    type="button"
+                                    class="cart-item-remove"
+                                    title="Удалить"
+                                >
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            `
+                    }
 
                     <div class="cart-item-bottom">
 
-                        <div class="cart-item-quantity">
+                        ${
+                            isPromoGift
+                                ? `
+                                    <div class="cart-item-gift-quantity">
+                                        ${item.quantity} шт.
+                                    </div>
+                                `
+                                : `
+                                    <div class="cart-item-quantity">
 
-                            <button
-                                type="button"
-                                class="cart-quantity-minus"
-                            >
-                                −
-                            </button>
+                                        <button
+                                            type="button"
+                                            class="cart-quantity-minus"
+                                        >
+                                            −
+                                        </button>
 
-                            <input
-                                type="number"
-                                class="cart-quantity-input"
-                                value="${item.quantity}"
-                                min="1"
-                                step="1"
-                            >
+                                        <input
+                                            type="number"
+                                            class="cart-quantity-input"
+                                            value="${item.quantity}"
+                                            min="1"
+                                            step="1"
+                                        >
 
-                            <button
-                                type="button"
-                                class="cart-quantity-plus"
-                            >
-                                +
-                            </button>
+                                        <button
+                                            type="button"
+                                            class="cart-quantity-plus"
+                                        >
+                                            +
+                                        </button>
 
-                        </div>
-
+                                    </div>
+                                `
+                        }
 
                         <div class="cart-item-price">
 
                             ${
-                                item.discount_percent > 0
+                                isPromoGift
                                     ? `
-                                        <div class="cart-item-base-price">
-                                            ${formatMoney(
-                                                item.base_price
-                                            )}
-                                        </div>
-
-                                        <div class="cart-item-discount">
-                                            Скидка ${item.discount_percent}%
-                                        </div>
+                                        <strong class="cart-item-gift-price">
+                                            Подарок
+                                        </strong>
                                     `
-                                    : ""
+                                    : `
+                                        ${
+                                            item.discount_percent > 0
+                                                ? `
+                                                    <div class="cart-item-base-price">
+                                                        ${formatMoney(
+                                                            item.base_price
+                                                        )}
+                                                    </div>
+
+                                                    <div class="cart-item-discount">
+                                                        ${
+                                                            isPromoProduct
+                                                                ? "Промо-скидка"
+                                                                : "Скидка"
+                                                        }
+                                                        ${item.discount_percent}%
+                                                    </div>
+                                                `
+                                                : ""
+                                        }
+
+                                        <span class="cart-item-unit-price">
+                                            ${formatMoney(
+                                                item.price
+                                            )}
+                                        </span>
+
+                                        <strong>
+                                            ${formatMoney(
+                                                item.price
+                                                * item.quantity
+                                            )}
+                                        </strong>
+                                    `
                             }
-
-                            <span class="cart-item-unit-price">
-                                ${formatMoney(
-                                    item.price
-                                )}
-                            </span>
-
-                            <strong>
-                                ${formatMoney(
-                                    item.price
-                                    * item.quantity
-                                )}
-                            </strong>
 
                         </div>
 
                     </div>
                 `;
-
 
                 const removeButton =
                     element.querySelector(
@@ -2547,104 +3114,107 @@ function renderProducts(products) {
                         ".cart-quantity-input"
                     );
 
+                if (removeButton) {
+                    removeButton.addEventListener(
+                        "click",
+                        function () {
 
-                removeButton.addEventListener(
-                    "click",
-                    function () {
-
-                        cart.delete(
-                            productId
-                        );
-
-                        updateCartSummary();
-                    }
-                );
-
-
-                minusButton.addEventListener(
-                    "click",
-                    function () {
-
-                        const current =
-                            cart.get(
-                                productId
-                            );
-
-                        if (!current) {
-                            return;
-                        }
-
-                        if (
-                            current.quantity <= 1
-                        ) {
                             cart.delete(
-                                productId
+                                cartKey
                             );
-                        } else {
-                            current.quantity -= 1;
+
+                            updateCartSummary();
                         }
+                    );
+                }
 
-                        updateCartSummary();
-                    }
-                );
+                if (minusButton) {
+                    minusButton.addEventListener(
+                        "click",
+                        function () {
 
+                            const current =
+                                cart.get(
+                                    cartKey
+                                );
 
-                plusButton.addEventListener(
-                    "click",
-                    function () {
+                            if (!current) {
+                                return;
+                            }
 
-                        const current =
-                            cart.get(
-                                productId
-                            );
+                            if (
+                                current.quantity <= 1
+                            ) {
+                                cart.delete(
+                                    cartKey
+                                );
+                            } else {
+                                current.quantity -= 1;
+                            }
 
-                        if (!current) {
-                            return;
+                            updateCartSummary();
                         }
+                    );
+                }
 
-                        current.quantity += 1;
+                if (plusButton) {
+                    plusButton.addEventListener(
+                        "click",
+                        function () {
 
-                        updateCartSummary();
-                    }
-                );
+                            const current =
+                                cart.get(
+                                    cartKey
+                                );
 
+                            if (!current) {
+                                return;
+                            }
 
-                quantityInput.addEventListener(
-                    "change",
-                    function () {
+                            current.quantity += 1;
 
-                        const current =
-                            cart.get(
-                                productId
-                            );
-
-                        if (!current) {
-                            return;
+                            updateCartSummary();
                         }
+                    );
+                }
 
-                        const value =
-                            Math.floor(
-                                Number(
-                                    quantityInput.value
-                                )
-                            );
+                if (quantityInput) {
+                    quantityInput.addEventListener(
+                        "change",
+                        function () {
 
-                        if (
-                            !Number.isFinite(value)
-                            || value <= 0
-                        ) {
-                            cart.delete(
-                                productId
-                            );
-                        } else {
-                            current.quantity =
-                                value;
+                            const current =
+                                cart.get(
+                                    cartKey
+                                );
+
+                            if (!current) {
+                                return;
+                            }
+
+                            const value =
+                                Math.floor(
+                                    Number(
+                                        quantityInput.value
+                                    )
+                                );
+
+                            if (
+                                !Number.isFinite(value)
+                                || value <= 0
+                            ) {
+                                cart.delete(
+                                    cartKey
+                                );
+                            } else {
+                                current.quantity =
+                                    value;
+                            }
+
+                            updateCartSummary();
                         }
-
-                        updateCartSummary();
-                    }
-                );
-
+                    );
+                }
 
                 cartItems.appendChild(
                     element
@@ -2999,7 +3569,13 @@ function renderProducts(products) {
 
         const items = Array.from(
             cart.values()
-        ).map(
+        )
+        .filter(
+            function (item) {
+                return !item.is_promo_gift;
+            }
+        )
+        .map(
             function (item) {
                 return {
                     product_id:
