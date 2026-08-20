@@ -62,7 +62,6 @@ class PromoEngine:
             "progress": None,
             "missing": [],
         }
-
     @staticmethod
     def _evaluate_fixed_set(
         promo,
@@ -70,6 +69,8 @@ class PromoEngine:
         cart_by_product,
     ):
         missing = []
+
+        application_counts = []
 
         for row in condition_rows:
 
@@ -80,6 +81,9 @@ class PromoEngine:
             required_quantity = (
                 row.quantity or 0
             )
+
+            if required_quantity <= 0:
+                continue
 
             cart_item = (
                 cart_by_product.get(
@@ -95,25 +99,55 @@ class PromoEngine:
                 else 0
             )
 
-            if current_quantity < required_quantity:
+            application_counts.append(
+                current_quantity
+                // required_quantity
+            )
 
+            if (
+                current_quantity
+                < required_quantity
+            ):
                 missing.append(
                     {
-                        "product_id": product_id,
-                        "name": row.product.name,
-                        "required": required_quantity,
-                        "current": current_quantity,
-                        "missing": (
-                            required_quantity
-                            - current_quantity
-                        ),
+                        "product_id":
+                            product_id,
+
+                        "name":
+                            row.product.name,
+
+                        "required":
+                            required_quantity,
+
+                        "current":
+                            current_quantity,
+
+                        "missing":
+                            (
+                                required_quantity
+                                - current_quantity
+                            ),
                     }
                 )
 
+        max_applications = (
+            min(application_counts)
+            if application_counts
+            else 0
+        )
+
         return {
-            "eligible": not missing,
-            "progress": None,
-            "missing": missing,
+            "eligible":
+                max_applications > 0,
+
+            "max_applications":
+                max_applications,
+
+            "progress":
+                None,
+
+            "missing":
+                missing,
         }
 
     @staticmethod
@@ -141,23 +175,47 @@ class PromoEngine:
             promo.threshold_quantity or 0
         )
 
-        missing_quantity = max(
-            0,
-            required_quantity
-            - current_quantity
+        max_applications = (
+            current_quantity
+            // required_quantity
+            if required_quantity > 0
+            else 0
         )
 
-        return {
-            "eligible": (
+        if required_quantity > 0:
+
+            remainder = (
                 current_quantity
-                >= required_quantity
-            ),
+                % required_quantity
+            )
+
+            missing_quantity = (
+                0
+                if remainder == 0
+                else required_quantity
+                - remainder
+            )
+
+        else:
+            missing_quantity = 0
+
+        return {
+            "eligible":
+                max_applications > 0,
+
+            "max_applications":
+                max_applications,
+
             "progress": {
                 "type": "quantity",
-                "current": current_quantity,
-                "required": required_quantity,
-                "missing": missing_quantity,
+                "current":
+                    current_quantity,
+                "required":
+                    required_quantity,
+                "missing":
+                    missing_quantity,
             },
+
             "missing": [],
         }
 
@@ -167,7 +225,9 @@ class PromoEngine:
         condition_product_ids,
         cart_by_product,
     ):
-        current_amount = Decimal("0.00")
+        current_amount = Decimal(
+            "0.00"
+        )
 
         for product_id in condition_product_ids:
 
@@ -200,28 +260,56 @@ class PromoEngine:
             or Decimal("0.00")
         )
 
-        missing_amount = max(
-            Decimal("0.00"),
-            required_amount
-            - current_amount,
+        max_applications = (
+            int(
+                current_amount
+                // required_amount
+            )
+            if required_amount > 0
+            else 0
         )
 
-        return {
-            "eligible": (
+        if required_amount > 0:
+
+            remainder = (
                 current_amount
-                >= required_amount
-            ),
+                % required_amount
+            )
+
+            missing_amount = (
+                Decimal("0.00")
+                if remainder == 0
+                else required_amount
+                - remainder
+            )
+
+        else:
+            missing_amount = (
+                Decimal("0.00")
+            )
+
+        return {
+            "eligible":
+                max_applications > 0,
+
+            "max_applications":
+                max_applications,
+
             "progress": {
                 "type": "amount",
+
                 "current": str(
                     current_amount
                 ),
+
                 "required": str(
                     required_amount
                 ),
+
                 "missing": str(
                     missing_amount
                 ),
             },
+
             "missing": [],
         }

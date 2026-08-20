@@ -1822,11 +1822,40 @@ def apply_promotion(
         )
     )
 
-
-    if not evaluation.get(
-        "eligible",
-        False,
+    try:
+        applications = int(
+            payload.get(
+                "applications",
+                1,
+            )
+        )
+    except (
+        TypeError,
+        ValueError,
     ):
+        applications = 1
+
+    applications = max(
+        1,
+        applications,
+    )
+
+
+    eligible = bool(
+        evaluation.get(
+            "eligible",
+            False,
+        )
+    )
+
+    max_applications = int(
+        evaluation.get(
+            "max_applications",
+            0,
+        )
+    )
+
+    if not eligible:
         return JsonResponse(
             {
                 "error": (
@@ -1840,6 +1869,25 @@ def apply_promotion(
             status=409,
         )
 
+    if applications > max_applications:
+        return JsonResponse(
+            {
+                "error": (
+                    "Запрошено слишком большое "
+                    "количество применений акции."
+                ),
+
+                "applications":
+                    applications,
+
+                "max_applications":
+                    max_applications,
+
+                "evaluation":
+                    evaluation,
+            },
+            status=409,
+        )    
 
     # =========================================================
     # Подарочная акция
@@ -1873,8 +1921,10 @@ def apply_promotion(
                         or ""
                     ),
 
-                    "quantity":
-                        row.quantity,
+                    "quantity": (
+                        row.quantity
+                        * applications
+                    ),
 
                     "price":
                         "0.00",
@@ -1894,6 +1944,9 @@ def apply_promotion(
 
                     "promo_name":
                         promo.name,
+
+                    "promo_applications":
+                        applications,
                 }
             )
 
@@ -1916,6 +1969,12 @@ def apply_promotion(
 
             "eligible":
                 True,
+
+            "applications":
+                applications,
+
+            "max_applications":
+                max_applications,
 
             "gifts":
                 gifts,
