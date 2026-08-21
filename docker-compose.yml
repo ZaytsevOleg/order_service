@@ -1,4 +1,5 @@
 services:
+
   web:
     build:
       context: .
@@ -26,12 +27,40 @@ services:
 
     networks:
       - order_service_db
+      - order_service_front
+
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: order_service_nginx
+
+    restart: unless-stopped
+
+    depends_on:
+      - web
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - order_service_static:/app/staticfiles:ro
+      - order_service_media:/app/order_service/media:ro
+
+    networks:
+      - order_service_front
+
 
 networks:
+
   order_service_db:
     external: true
     name: postgres_default
 
+  order_service_front:
+
+
 volumes:
+
   order_service_static:
   order_service_media:
