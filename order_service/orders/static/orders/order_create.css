@@ -1012,3 +1012,183 @@ body.promo-modal-open {
 .cart-item.is-promo-item {
     background: #fafafa;
 }
+
+/* =========================================================
+   ПРОМО В КОРЗИНЕ
+   ========================================================= */
+
+.cart-promo-group {
+    padding: 16px 14px;
+
+    border: 1px solid var(--brand-border);
+    border-radius: 14px;
+
+    background: #fff;
+}
+
+.cart-promo-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 12px;
+}
+
+.cart-promo-title {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.cart-promo-caption {
+    margin-top: 3px;
+
+    color: var(--brand-primary);
+
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cart-promo-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 28px;
+    height: 28px;
+
+    padding: 0;
+
+    border: none;
+    border-radius: 50%;
+
+    background: transparent;
+
+    color: var(--brand-muted);
+
+    cursor: pointer;
+}
+
+.cart-promo-remove:hover {
+    background: #f3f3f3;
+    color: var(--brand-primary);
+}
+
+
+/* =========================================================
+   КОЛИЧЕСТВО ПРОМО
+   ========================================================= */
+
+.cart-promo-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-top: 14px;
+}
+
+.cart-promo-control > span {
+    color: var(--brand-muted);
+
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.cart-promo-control .quantity-control {
+    flex: 0 0 auto;
+}
+
+.cart-promo-input {
+    width: 46px;
+
+    text-align: center;
+}
+
+
+/* =========================================================
+   СОСТАВ ПРОМО
+   ========================================================= */
+
+.cart-promo-composition {
+    margin-top: 14px;
+    padding-top: 12px;
+
+    border-top: 1px solid var(--brand-border);
+}
+
+.cart-promo-composition-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    padding: 5px 0;
+
+    font-size: 12px;
+    line-height: 1.3;
+}
+
+.cart-promo-composition-row span {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.cart-promo-composition-row strong {
+    flex: 0 0 auto;
+
+    white-space: nowrap;
+
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cart-promo-composition-row small {
+    display: block;
+
+    margin-top: 2px;
+
+    color: var(--brand-primary);
+
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.cart-promo-gift-row {
+    color: var(--brand-primary);
+}
+
+
+/* =========================================================
+   ИТОГ ПРОМО
+   ========================================================= */
+
+.cart-promo-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-top: 12px;
+    padding-top: 12px;
+
+    border-top: 1px solid var(--brand-border);
+
+    font-size: 12px;
+}
+
+.cart-promo-total span {
+    color: var(--brand-muted);
+}
+
+.cart-promo-total strong {
+    color: var(--brand-text);
+
+    font-size: 13px;
+    font-weight: 700;
+
+    text-align: right;
+}
