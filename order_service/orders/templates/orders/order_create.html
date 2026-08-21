@@ -1982,141 +1982,141 @@ function renderProducts(products) {
                     === "fixed_set";
 
                 card.innerHTML = `
+                    <div class="promo-card-layout">
 
-                    ${
-                        promo.image_url
-                            ? `
-                                <div class="promo-card-image-wrap">
+                        <div class="promo-card-body">
 
-                                    <img
-                                        src="${escapeHtml(
-                                            promo.image_url
-                                        )}"
-                                        alt="${escapeHtml(
-                                            promo.name
-                                        )}"
-                                        class="promo-card-image"
-                                    >
-
-                                </div>
-                            `
-                            : ""
-                    }
-
-                    <div class="promo-card-body">
-
-                        <h3>
-                            ${escapeHtml(
-                                promo.name
-                            )}
-                        </h3>
-
-                        ${
-                            promo.short_description
-                                ? `
-                                    <p class="promo-card-description">
-                                        ${escapeHtml(
-                                            promo.short_description
-                                        )}
-                                    </p>
-                                `
-                                : ""
-                        }
-
-                        ${
-                            isEligible
-                                ? `
-                                    <div class="promo-card-status promo-card-status-success">
-                                        Условия акции выполнены
-                                    </div>
-                                `
-                                : renderPromoProgress(
-                                    promo,
-                                    evaluation
-                                )
-                        }
-
-                        ${
-                            validToText
-                                ? `
-                                    <div class="promo-card-validity">
-                                        Действует до
-                                        ${validToText}
-                                    </div>
-                                `
-                                : ""
-                        }
-
-                        <div class="promo-card-actions">
-
-                            <button
-                                type="button"
-                                class="secondary-btn promo-details-btn"
-                            >
-                                Подробнее
-                            </button>
+                            <h3>
+                                ${escapeHtml(
+                                    promo.name
+                                )}
+                            </h3>
 
                             ${
-                                isFixedSet
+                                promo.short_description
                                     ? `
-                                        <div class="promo-add-control">
+                                        <p class="promo-card-description">
+                                            ${escapeHtml(
+                                                promo.short_description
+                                            )}
+                                        </p>
+                                    `
+                                    : ""
+                            }
 
-                                            <span class="promo-add-label">
-                                                Количество промо
-                                            </span>
+                            ${
+                                isEligible
+                                    ? `
+                                        <div class="promo-card-status promo-card-status-success">
+                                            Условия акции выполнены
+                                        </div>
+                                    `
+                                    : renderPromoProgress(
+                                        promo,
+                                        evaluation
+                                    )
+                            }
 
-                                            <div class="promo-add-row">
+                            ${
+                                validToText
+                                    ? `
+                                        <div class="promo-card-validity">
+                                            Действует до ${validToText}
+                                        </div>
+                                    `
+                                    : ""
+                            }
 
-                                                <div class="quantity-control">
+                            <div class="promo-card-actions">
+
+                                <button
+                                    type="button"
+                                    class="secondary-btn promo-details-btn"
+                                >
+                                    Подробнее
+                                </button>
+
+                                ${
+                                    isFixedSet
+                                        ? `
+                                            <div class="promo-add-control">
+
+                                                <span class="promo-add-label">
+                                                    Количество промо
+                                                </span>
+
+                                                <div class="promo-add-row">
+
+                                                    <div class="quantity-control">
+
+                                                        <button
+                                                            type="button"
+                                                            class="quantity-button promo-quantity-minus"
+                                                            disabled
+                                                        >
+                                                            −
+                                                        </button>
+
+                                                        <input
+                                                            type="number"
+                                                            class="promo-quantity-input"
+                                                            value="1"
+                                                            min="1"
+                                                            step="1"
+                                                            inputmode="numeric"
+                                                        >
+
+                                                        <button
+                                                            type="button"
+                                                            class="quantity-button promo-quantity-plus"
+                                                        >
+                                                            +
+                                                        </button>
+
+                                                    </div>
 
                                                     <button
                                                         type="button"
-                                                        class="quantity-button promo-quantity-minus"
-                                                        disabled
-                                                        aria-label="Уменьшить количество промо"
+                                                        class="primary-btn promo-add-btn"
                                                     >
-                                                        −
-                                                    </button>
-
-                                                    <input
-                                                        type="number"
-                                                        class="promo-quantity-input"
-                                                        value="1"
-                                                        min="1"
-                                                        step="1"
-                                                        inputmode="numeric"
-                                                    >
-
-                                                    <button
-                                                        type="button"
-                                                        class="quantity-button promo-quantity-plus"
-                                                        aria-label="Увеличить количество промо"
-                                                    >
-                                                        +
+                                                        Добавить
                                                     </button>
 
                                                 </div>
 
-                                                <button
-                                                    type="button"
-                                                    class="primary-btn promo-add-btn"
-                                                >
-                                                    Добавить
-                                                </button>
-
                                             </div>
+                                        `
+                                        : `
+                                            <div class="promo-select-products-note">
+                                                Состав этой акции формируется
+                                                из выбранных вами товаров.
+                                            </div>
+                                        `
+                                }
 
-                                        </div>
-                                    `
-                                    : `
-                                        <div class="promo-select-products-note">
-                                            Состав этой акции формируется
-                                            из выбранных вами товаров.
-                                        </div>
-                                    `
-                            }
+                            </div>
 
                         </div>
+
+                        ${
+                            promo.image_url
+                                ? `
+                                    <div class="promo-card-image-wrap">
+
+                                        <img
+                                            src="${escapeHtml(
+                                                promo.image_url
+                                            )}"
+                                            alt="${escapeHtml(
+                                                promo.name
+                                            )}"
+                                            class="promo-card-image"
+                                        >
+
+                                    </div>
+                                `
+                                : ""
+                        }
 
                     </div>
                 `;

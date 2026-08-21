@@ -22,7 +22,7 @@ services:
 
     volumes:
       - order_service_static:/app/staticfiles
-      - order_service_media:/app/media
+      - order_service_media:/app/order_service/media
 
     networks:
       - order_service_db
