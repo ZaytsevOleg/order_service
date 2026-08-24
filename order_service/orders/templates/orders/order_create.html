@@ -3009,18 +3009,20 @@ function renderProducts(products) {
             return;
         }
 
-        const hasItems =
-            cart.size > 0;
-
         const hasShortage =
             hasStockShortages();
 
         /*
-         * Шаг 1: нужен выбранный клиент и договор.
-         * Шаг 2: нужна непустая корзина без дефицита.
-         * На остальных шагах отдельные проверки добавим
-         * по мере реализации соответствующих полей.
-         */
+        * Шаг 1:
+        * нужен выбранный клиент и договор.
+        *
+        * Шаг 2:
+        * можно перейти на промо даже с пустой корзиной.
+        * Блокируем только при дефиците товара.
+        *
+        * Проверку суммы заказа будем делать
+        * перед финальным оформлением.
+        */
         if (currentStep === 1) {
 
             nextBtn.disabled = !(
@@ -3033,8 +3035,7 @@ function renderProducts(products) {
         } else if (currentStep === 2) {
 
             nextBtn.disabled =
-                !hasItems
-                || hasShortage;
+                hasShortage;
 
         } else {
 
