@@ -615,6 +615,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const appliedPromotions =
         new Map();
 
+    const orderCreateActions =
+        document.querySelector(
+            ".order-create-actions"
+        );    
+
     async function loadCustomerOptions() {
 
         if (
@@ -4153,6 +4158,12 @@ function renderProducts(products) {
             step !== 5
         );
 
+        if (orderCreateActions) {
+            orderCreateActions.classList.toggle(
+                "is-sticky",
+                step === 2
+            );
+        }
 
         if (step === 2) {
             loadProducts();
