@@ -734,12 +734,23 @@
 
     gap: 16px;
 
+    min-height: 44px;
+
     margin-bottom: 20px;
-    padding: 12px 0 10px;
 
-    background: var(--brand-background);
+    padding:
+        10px 6px
+        9px;
 
-    border-bottom: 1px solid var(--brand-border);
+    background:
+        var(--brand-surface);
+
+    border-bottom:
+        1px solid var(--brand-border);
+
+    box-shadow:
+        0 5px 10px
+        rgba(0, 0, 0, 0.025);
 }
 
 .product-category-title {
