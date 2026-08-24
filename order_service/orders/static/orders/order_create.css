@@ -927,7 +927,43 @@
 }
 
 .promo-add-control {
+    margin-top: 18px;
+}
+
+.promo-add-label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: var(--brand-text);
+
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.promo-add-row {
+    display: flex;
+    align-items: center;
+
+    gap: 14px;
+}
+
+.promo-add-row .quantity-control {
+    flex-shrink: 0;
+}
+
+.promo-add-btn {
+    flex-shrink: 0;
+}
+
+.promo-card-actions {
     margin-top: 14px;
+}
+
+.promo-details-btn {
+    min-height: 40px;
+    padding: 0 18px;
 }
 
 .promo-modal[hidden] {

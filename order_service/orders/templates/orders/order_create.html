@@ -2032,64 +2032,66 @@ function renderProducts(products) {
                                     : ""
                             }
 
-                            <div class="promo-card-actions">
-
-                                <button
-                                    type="button"
-                                    class="secondary-btn promo-details-btn"
-                                >
-                                    Подробнее
-                                </button>
-
                                 ${
                                     isFixedSet
                                         ? `
-                                            <div class="promo-add-control">
+                                        <div class="promo-add-control">
 
-                                                <span class="promo-add-label">
-                                                    Количество промо
-                                                </span>
+                                            <span class="promo-add-label">
+                                                Количество промо
+                                            </span>
 
-                                                <div class="promo-add-row">
+                                            <div class="promo-add-row">
 
-                                                    <div class="quantity-control">
-
-                                                        <button
-                                                            type="button"
-                                                            class="quantity-button promo-quantity-minus"
-                                                            disabled
-                                                        >
-                                                            −
-                                                        </button>
-
-                                                        <input
-                                                            type="number"
-                                                            class="promo-quantity-input"
-                                                            value="1"
-                                                            min="1"
-                                                            step="1"
-                                                            inputmode="numeric"
-                                                        >
-
-                                                        <button
-                                                            type="button"
-                                                            class="quantity-button promo-quantity-plus"
-                                                        >
-                                                            +
-                                                        </button>
-
-                                                    </div>
+                                                <div class="quantity-control">
 
                                                     <button
                                                         type="button"
-                                                        class="primary-btn promo-add-btn"
+                                                        class="quantity-button promo-quantity-minus"
+                                                        disabled
                                                     >
-                                                        Добавить
+                                                        −
+                                                    </button>
+
+                                                    <input
+                                                        type="number"
+                                                        class="promo-quantity-input"
+                                                        value="1"
+                                                        min="1"
+                                                        step="1"
+                                                        inputmode="numeric"
+                                                    >
+
+                                                    <button
+                                                        type="button"
+                                                        class="quantity-button promo-quantity-plus"
+                                                    >
+                                                        +
                                                     </button>
 
                                                 </div>
 
+                                                <button
+                                                    type="button"
+                                                    class="primary-btn promo-add-btn"
+                                                >
+                                                    Добавить
+                                                </button>
+
                                             </div>
+
+                                        </div>
+
+                                        <div class="promo-card-actions">
+
+                                            <button
+                                                type="button"
+                                                class="secondary-btn promo-details-btn"
+                                            >
+                                                Подробнее
+                                            </button>
+
+                                        </div>
                                         `
                                         : `
                                             <div class="promo-select-products-note">
