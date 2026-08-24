@@ -390,6 +390,32 @@
 
         justify-self: start;
     } 
+
+    .promo-card-layout {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .promo-card-image-wrap {
+        order: -1;
+
+        width: 100%;
+        height: 160px;
+
+        overflow: hidden;
+
+        border-radius: 12px;
+
+        justify-self: stretch;
+    }
+
+    .promo-card-image {
+        width: 100%;
+        height: 100%;
+
+        object-fit: contain;
+        background: var(--brand-surface-soft);
+    }    
 }
 
 
