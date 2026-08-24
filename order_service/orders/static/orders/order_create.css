@@ -343,6 +343,24 @@
 
 @media (max-width: 900px) {
 
+    .order-step-heading {
+        display: block;
+    }
+
+    .order-step-description {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .promo-card h3,
+    .promo-card-description,
+    .promo-card-progress,
+    .promo-card-validity {
+        max-width: 100%;
+
+        overflow-wrap: anywhere;
+    }    
+
     .product-card-content {
         grid-template-columns:
             minmax(0, 1fr)
@@ -375,29 +393,26 @@
         grid-column: 2;
     }
 
-    .promo-card-layout {
-        grid-template-columns: 1fr;
+    .promo-card {
+        padding: 16px;
     }
 
-    .promo-card-image-wrap {
-        width: min(
-            100%,
-            360px
-        );
-
-        height: auto;
-        aspect-ratio: 1 / 1;
-
-        justify-self: start;
-    } 
-
     .promo-card-layout {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
+
         gap: 16px;
     }
 
+    .promo-card-body {
+        order: 2;
+
+        width: 100%;
+        min-width: 0;
+    }    
+
     .promo-card-image-wrap {
-        order: -1;
+        order: 1;
 
         width: 100%;
         height: 160px;
@@ -406,16 +421,22 @@
 
         border-radius: 12px;
 
-        justify-self: stretch;
+        background: var(--brand-surface-soft);
     }
 
+
     .promo-card-image {
+        display: block;
+
         width: 100%;
         height: 100%;
 
         object-fit: contain;
-        background: var(--brand-surface-soft);
-    }    
+    }
+
+    .promo-card-actions {
+        width: 100%;
+    } 
 }
 
 
