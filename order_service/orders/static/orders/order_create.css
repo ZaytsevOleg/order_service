@@ -50,12 +50,40 @@
         rgba(0, 0, 0, 0.04);
 }
 
+.order-create-actions::before {
+    content: "";
+
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -12px;
+
+    height: 12px;
+
+    pointer-events: none;
+
+    background:
+        linear-gradient(
+            to top,
+            rgba(255, 255, 255, 0.9),
+            rgba(255, 255, 255, 0)
+        );
+}
+
 /* Поиск */
 
 .product-search-row {
+    position: sticky;
+    top: 0;
+    z-index: 35;
+
     display: flex;
     gap: 12px;
+
     margin-bottom: 24px;
+    padding: 12px 0;
+
+    background: var(--brand-surface);
 }
 
 .product-search-box {
