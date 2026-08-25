@@ -59,9 +59,11 @@ class PromoEngine:
 
         return {
             "eligible": False,
+            "progress_percent": 0,
             "progress": None,
             "missing": [],
         }
+    
     @staticmethod
     def _evaluate_fixed_set(
         promo,
@@ -69,8 +71,9 @@ class PromoEngine:
         cart_by_product,
     ):
         missing = []
+        progress_values = []
 
-        application_counts = []
+        has_conditions = False
 
         for row in condition_rows:
 
@@ -84,6 +87,8 @@ class PromoEngine:
 
             if required_quantity <= 0:
                 continue
+
+            has_conditions = True
 
             cart_item = (
                 cart_by_product.get(
@@ -99,9 +104,21 @@ class PromoEngine:
                 else 0
             )
 
-            application_counts.append(
-                current_quantity
-                // required_quantity
+            row_progress = min(
+                Decimal("100"),
+                (
+                    Decimal(
+                        current_quantity
+                    )
+                    / Decimal(
+                        required_quantity
+                    )
+                    * Decimal("100")
+                ),
+            )
+
+            progress_values.append(
+                row_progress
             )
 
             if (
@@ -130,18 +147,25 @@ class PromoEngine:
                     }
                 )
 
-        max_applications = (
-            min(application_counts)
-            if application_counts
-            else 0
+        eligible = (
+            has_conditions
+            and not missing
+        )
+
+        progress_percent = (
+            min(progress_values)
+            if progress_values
+            else Decimal("0")
         )
 
         return {
             "eligible":
-                max_applications > 0,
+                eligible,
 
-            "max_applications":
-                max_applications,
+            "progress_percent":
+                int(
+                    progress_percent
+                ),
 
             "progress":
                 None,
@@ -149,7 +173,7 @@ class PromoEngine:
             "missing":
                 missing,
         }
-
+    
     @staticmethod
     def _evaluate_total_quantity(
         promo,
@@ -175,43 +199,50 @@ class PromoEngine:
             promo.threshold_quantity or 0
         )
 
-        max_applications = (
-            current_quantity
-            // required_quantity
-            if required_quantity > 0
-            else 0
+        eligible = (
+            required_quantity > 0
+            and current_quantity
+            >= required_quantity
         )
 
         if required_quantity > 0:
 
-            remainder = (
-                current_quantity
-                % required_quantity
+            missing_quantity = max(
+                0,
+                required_quantity
+                - current_quantity,
             )
 
-            missing_quantity = (
-                0
-                if remainder == 0
-                else required_quantity
-                - remainder
+            progress_percent = min(
+                100,
+                int(
+                    current_quantity
+                    / required_quantity
+                    * 100
+                ),
             )
 
         else:
+
             missing_quantity = 0
+            progress_percent = 0
 
         return {
             "eligible":
-                max_applications > 0,
+                eligible,
 
-            "max_applications":
-                max_applications,
+            "progress_percent":
+                progress_percent,
 
             "progress": {
                 "type": "quantity",
+
                 "current":
                     current_quantity,
+
                 "required":
                     required_quantity,
+
                 "missing":
                     missing_quantity,
             },
@@ -219,97 +250,100 @@ class PromoEngine:
             "missing": [],
         }
 
-    @staticmethod
-    def _evaluate_total_amount(
-        promo,
-        condition_product_ids,
-        cart_by_product,
-    ):
-        current_amount = Decimal(
-            "0.00"
+@staticmethod
+def _evaluate_total_amount(
+    promo,
+    condition_product_ids,
+    cart_by_product,
+):
+    current_amount = Decimal(
+        "0.00"
+    )
+
+    for product_id in condition_product_ids:
+
+        item = cart_by_product.get(
+            product_id
         )
 
-        for product_id in condition_product_ids:
+        if not item:
+            continue
 
-            item = cart_by_product.get(
-                product_id
+        quantity = Decimal(
+            str(
+                item["quantity"]
             )
-
-            if not item:
-                continue
-
-            quantity = Decimal(
-                str(
-                    item["quantity"]
-                )
-            )
-
-            base_price = Decimal(
-                str(
-                    item["base_price"]
-                )
-            )
-
-            current_amount += (
-                quantity
-                * base_price
-            )
-
-        required_amount = (
-            promo.threshold_amount
-            or Decimal("0.00")
         )
 
-        max_applications = (
+        base_price = Decimal(
+            str(
+                item["base_price"]
+            )
+        )
+
+        current_amount += (
+            quantity
+            * base_price
+        )
+
+    required_amount = (
+        promo.threshold_amount
+        or Decimal("0.00")
+    )
+
+    eligible = (
+        required_amount > 0
+        and current_amount
+        >= required_amount
+    )
+
+    if required_amount > 0:
+
+        missing_amount = max(
+            Decimal("0.00"),
+            required_amount
+            - current_amount,
+        )
+
+        progress_percent = min(
+            100,
             int(
                 current_amount
-                // required_amount
-            )
-            if required_amount > 0
-            else 0
+                / required_amount
+                * Decimal("100")
+            ),
         )
 
-        if required_amount > 0:
+    else:
 
-            remainder = (
+        missing_amount = (
+            Decimal("0.00")
+        )
+
+        progress_percent = 0
+
+    return {
+        "eligible":
+            eligible,
+
+        "progress_percent":
+            progress_percent,
+
+        "progress": {
+            "type": "amount",
+
+            "current": str(
                 current_amount
-                % required_amount
-            )
+            ),
 
-            missing_amount = (
-                Decimal("0.00")
-                if remainder == 0
-                else required_amount
-                - remainder
-            )
+            "required": str(
+                required_amount
+            ),
 
-        else:
-            missing_amount = (
-                Decimal("0.00")
-            )
+            "missing": str(
+                missing_amount
+            ),
+        },
 
-        return {
-            "eligible":
-                max_applications > 0,
-
-            "max_applications":
-                max_applications,
-
-            "progress": {
-                "type": "amount",
-
-                "current": str(
-                    current_amount
-                ),
-
-                "required": str(
-                    required_amount
-                ),
-
-                "missing": str(
-                    missing_amount
-                ),
-            },
-
-            "missing": [],
-        }
+        "missing": [],
+    }

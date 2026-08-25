@@ -1,5 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import (
+    MinValueValidator,
+    MaxValueValidator,
+)
 
 
 class Brand(models.Model):
@@ -679,6 +683,7 @@ class PromoAction(models.Model):
     promo_id = models.CharField(
         max_length=255,
         primary_key=True,
+        editable=False,
         verbose_name="Идентификатор акции",
     )
 
@@ -803,6 +808,69 @@ class PromoAction(models.Model):
         ),
     )
 
+
+    progress_threshold_percent = models.PositiveSmallIntegerField(
+        default=50,
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(99),
+        ],
+        verbose_name="Показывать прогресс начиная с, %",
+        help_text=(
+            "Используется только если включено "
+            "«Показывать прогресс выполнения». "
+            "Например, 50 означает, что подсказка появится "
+            "после выполнения 50% условий акции."
+        ),
+    )
+
+    def _generate_promo_id(self):
+
+        promo_ids = (
+            PromoAction.objects
+            .filter(
+                promo_id__startswith="promo_"
+            )
+            .values_list(
+                "promo_id",
+                flat=True,
+            )
+        )
+
+        max_number = 0
+
+        for promo_id in promo_ids:
+
+            try:
+                number = int(
+                    promo_id.removeprefix(
+                        "promo_"
+                    )
+                )
+
+                max_number = max(
+                    max_number,
+                    number,
+                )
+
+            except ValueError:
+                continue
+
+        return (
+            f"promo_{max_number + 1:04d}"
+        )
+
+    def save(self, *args, **kwargs):
+
+        if not self.promo_id:
+            self.promo_id = (
+                self._generate_promo_id()
+            )
+
+        super().save(
+            *args,
+            **kwargs
+        )
     # =========================================================
     # Период действия
     # =========================================================

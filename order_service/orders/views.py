@@ -895,6 +895,10 @@ def customer_promotions(request, customer_id):
                     promo.show_progress
                 ),
 
+                "progress_threshold_percent": (
+                    promo.progress_threshold_percent
+                ),
+
                 "priority": promo.priority,
 
                 "valid_from": (
