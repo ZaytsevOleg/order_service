@@ -2012,13 +2012,23 @@ function renderProducts(products) {
                             ${
                                 isEligible
                                     ? `
-                                        <div class="promo-card-status promo-card-status-success">
-                                            
+                                        <div class="
+                                            promo-card-status
+                                            promo-card-status-success
+                                        ">
+                                            Условия акции выполнены
                                         </div>
                                     `
-                                    : renderPromoProgress(
-                                        promo,
-                                        evaluation
+                                    : (
+                                        shouldShowPromoProgress(
+                                            promo,
+                                            evaluation
+                                        )
+                                            ? renderPromoProgress(
+                                                promo,
+                                                evaluation
+                                            )
+                                            : ""
                                     )
                             }
 
@@ -2745,6 +2755,37 @@ function renderProducts(products) {
 
         renderPromotions(
             currentPromotions
+        );
+    }
+
+    function shouldShowPromoProgress(
+        promo,
+        evaluation
+    ) {
+        if (!promo.show_progress) {
+            return false;
+        }
+
+        if (!evaluation) {
+            return false;
+        }
+
+        if (evaluation.eligible) {
+            return false;
+        }
+
+        const progressPercent =
+            Number(
+                evaluation.progress_percent || 0
+            );
+
+        const thresholdPercent =
+            Number(
+                promo.progress_threshold_percent || 50
+            );
+
+        return (
+            progressPercent >= thresholdPercent
         );
     }
 
