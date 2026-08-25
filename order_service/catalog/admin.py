@@ -482,6 +482,7 @@ class PromoActionAdmin(admin.ModelAdmin):
                     "valid_from",
                     "valid_to",
                     "show_progress",
+                    "progress_threshold_percent",
                     "priority",
                     "is_active",
                 )
