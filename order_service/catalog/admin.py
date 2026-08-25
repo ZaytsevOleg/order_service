@@ -448,7 +448,6 @@ class PromoActionAdmin(admin.ModelAdmin):
             "Основное",
             {
                 "fields": (
-                    "promo_id",
                     "name",
                     "short_description",
                     "description",
