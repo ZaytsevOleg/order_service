@@ -1035,3 +1035,111 @@ class PromoGiftProduct(models.Model):
             f"{self.product} × "
             f"{self.quantity}"
         )
+
+
+class Department(models.Model):
+
+    department_id = models.CharField(
+        max_length=100,
+        primary_key=True,
+        verbose_name="Идентификатор подразделения",
+    )
+
+    name = models.CharField(
+        max_length=255,
+        verbose_name="Подразделение",
+    )
+
+    min_delivery_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="Минимальная сумма для доставки",
+        help_text=(
+            "При меньшей сумме заказа клиенту "
+            "будет доступен только самовывоз."
+        ),
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Активно",
+    )
+
+    class Meta:
+        ordering = [
+            "name",
+        ]
+
+        verbose_name = (
+            "Подразделение"
+        )
+
+        verbose_name_plural = (
+            "Подразделения"
+        )
+
+    def __str__(self):
+        return self.name
+
+
+class Manager(models.Model):
+
+    manager_id = models.CharField(
+        max_length=100,
+        primary_key=True,
+        verbose_name="Идентификатор менеджера",
+    )
+
+    name = models.CharField(
+        max_length=255,
+        verbose_name="Менеджер",
+    )
+
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.PROTECT,
+        related_name="managers",
+        verbose_name="Подразделение",
+    )
+
+    email = models.EmailField(
+        blank=True,
+        verbose_name="Email",
+    )
+
+    phone = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Телефон",
+    )
+
+    bitrix_id = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="ID пользователя Bitrix24",
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Активен",
+    )
+
+    class Meta:
+        ordering = [
+            "name",
+        ]
+
+        verbose_name = (
+            "Менеджер"
+        )
+
+        verbose_name_plural = (
+            "Менеджеры"
+        )
+
+    def __str__(self):
+        return self.name
+
+
+            
