@@ -16,6 +16,8 @@ from .models import (
     CurrencyRate,
     Warehouse,
     StockBalance,
+    Department,
+    Manager,    
 )
 
 
@@ -575,3 +577,60 @@ class StockBalanceAdmin(admin.ModelAdmin):
     readonly_fields = (
         "updated_at",
     )
+
+@admin.register(Department)
+class DepartmentAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "name",
+        "department_id",
+        "min_delivery_amount",
+        "is_active",
+    )
+
+    list_filter = (
+        "is_active",
+    )
+
+    search_fields = (
+        "name",
+        "department_id",
+    )
+
+    ordering = (
+        "name",
+    )
+
+
+@admin.register(Manager)
+class ManagerAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "name",
+        "department",
+        "email",
+        "phone",
+        "bitrix_id",
+        "is_active",
+    )
+
+    list_filter = (
+        "department",
+        "is_active",
+    )
+
+    search_fields = (
+        "name",
+        "email",
+        "phone",
+        "bitrix_id",
+        "manager_id",
+    )
+
+    ordering = (
+        "name",
+    )
+
+    readonly_fields = (
+        "manager_id",
+    )    
