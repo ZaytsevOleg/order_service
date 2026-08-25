@@ -1377,6 +1377,13 @@ def evaluate_promotions(
             or []
         )
 
+        progress_percent = (
+            evaluation.get(
+                "progress_percent",
+                0,
+            )
+        )        
+
 
         # -----------------------------------------------------
         # Администратор может запретить клиенту видеть,
@@ -1416,6 +1423,8 @@ def evaluate_promotions(
 
                 "missing":
                     missing,
+                "progress_percent":
+                    progress_percent,
             }
         )
 
