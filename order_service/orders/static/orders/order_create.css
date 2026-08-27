@@ -1416,3 +1416,82 @@ body.promo-modal-open {
 
     text-align: right;
 }
+
+/* =========================================================
+   Шаг Отгрузка
+   ========================================================= */
+
+.shipping-info {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 14px;
+
+    margin-bottom: 20px;
+}
+
+.shipping-info[hidden] {
+    display: none;
+}
+
+.shipping-info-item {
+    padding: 14px 16px;
+
+    background: var(--brand-surface-soft);
+
+    border: 1px solid var(--brand-border);
+    border-radius: 14px;
+}
+
+.shipping-info-item span {
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: var(--brand-muted);
+
+    font-size: 12px;
+}
+
+.shipping-info-item strong {
+    display: block;
+
+    color: var(--brand-text);
+
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.shipping-delivery-message {
+    margin-bottom: 20px;
+    padding: 13px 16px;
+
+    border-radius: 12px;
+
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.shipping-delivery-message[hidden] {
+    display: none;
+}
+
+.shipping-delivery-available {
+    background: var(--brand-surface-soft);
+    color: var(--brand-text);
+}
+
+.shipping-delivery-unavailable {
+    background: var(--brand-control-bg);
+    color: var(--brand-primary);
+}
+
+
+@media (max-width: 600px) {
+
+    .shipping-info {
+        grid-template-columns: 1fr;
+    }
+}

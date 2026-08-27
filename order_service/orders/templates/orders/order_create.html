@@ -205,16 +205,50 @@
 
                 <section
                     class="order-step"
-                    data-step="4"
-                >
-                    <h2>Отгрузка</h2>
+                    data-step="4">
+                    <div class="order-step-heading">
+                        <div>
+                            <h2>Отгрузка</h2>
+
+                            <p class="order-step-description">
+                                Выберите способ получения заказа.
+                            </p>
+                        </div>
+                    </div>
+
+
+                    <div
+                        id="shippingInfo"
+                        class="shipping-info"
+                        hidden>
+                        <div class="shipping-info-item">
+                            <span>Менеджер</span>
+                            <strong id="shippingManager">
+                                —
+                            </strong>
+                        </div>
+
+                        <div class="shipping-info-item">
+                            <span>Подразделение</span>
+                            <strong id="shippingDepartment">
+                                —
+                            </strong>
+                        </div>
+                    </div>
+
+
+                    <div
+                        id="shippingDeliveryMessage"
+                        class="shipping-delivery-message"
+                        hidden>
+                    </div>
+
 
                     <div class="form-grid">
 
                         <div class="form-field">
                             <label
-                                for="{{ form.shipping_type.id_for_label }}"
-                            >
+                                for="{{ form.shipping_type.id_for_label }}">
                                 Способ отгрузки
                             </label>
 
@@ -230,8 +264,7 @@
 
                         <div class="form-field">
                             <label
-                                for="{{ form.delivery_address.id_for_label }}"
-                            >
+                                for="{{ form.delivery_address.id_for_label }}" >
                                 Адрес доставки
                             </label>
 
@@ -247,8 +280,7 @@
 
                         <div class="form-field">
                             <label
-                                for="{{ form.shipping_date.id_for_label }}"
-                            >
+                                for="{{ form.shipping_date.id_for_label }}">
                                 Дата отгрузки
                             </label>
 
@@ -264,8 +296,7 @@
 
                         <div class="form-field">
                             <label
-                                for="{{ form.payment_method.id_for_label }}"
-                            >
+                                for="{{ form.payment_method.id_for_label }}">
                                 Форма оплаты
                             </label>
 
@@ -288,8 +319,7 @@
 
                 <section
                     class="order-step"
-                    data-step="5"
-                >
+                    data-step="5">
                     <h2>Подтверждение</h2>
 
                     <div class="confirm-card">
@@ -539,6 +569,28 @@ document.addEventListener("DOMContentLoaded", function () {
         "id_shipping_date"
     );
 
+    const shippingInfo =
+        document.getElementById(
+            "shippingInfo"
+        );
+
+    const shippingManager =
+        document.getElementById(
+            "shippingManager"
+        );
+
+    const shippingDepartment =
+        document.getElementById(
+            "shippingDepartment"
+        );
+
+    const shippingDeliveryMessage =
+        document.getElementById(
+            "shippingDeliveryMessage"
+        );
+
+    let currentShippingOptions = null;
+
     const brandDisplay = document.getElementById(
         "brandDisplay"
     );
@@ -776,6 +828,264 @@ document.addEventListener("DOMContentLoaded", function () {
             );
 
             updateNextStepState();
+        }
+    }
+
+    async function loadShippingOptions() {
+
+        if (
+            !customerSelect
+            || !contractSelect
+        ) {
+            return;
+        }
+
+        const customerId =
+            customerSelect.value;
+
+        const contractId =
+            contractSelect.value;
+
+        if (
+            !customerId
+            || !contractId
+        ) {
+            currentShippingOptions = null;
+            renderShippingOptions();
+            return;
+        }
+
+        const params =
+            new URLSearchParams();
+
+        params.set(
+            "contract_id",
+            contractId
+        );
+
+        params.set(
+            "order_amount",
+            getCartTotal().toFixed(2)
+        );
+
+        try {
+
+            const response = await fetch(
+                `/orders/api/customer/${customerId}/shipping-options/?${params.toString()}`,
+                {
+                    headers: {
+                        "X-Requested-With":
+                            "XMLHttpRequest"
+                    }
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error
+                    || `HTTP ${response.status}`
+                );
+            }
+
+            currentShippingOptions = data;
+
+            renderShippingOptions();
+
+        } catch (error) {
+
+            console.error(
+                "Ошибка загрузки условий отгрузки:",
+                error
+            );
+
+            currentShippingOptions = null;
+
+            renderShippingOptions();
+        }
+    }    
+
+
+    function renderShippingOptions() {
+
+        if (!currentShippingOptions) {
+
+            if (shippingInfo) {
+                shippingInfo.hidden = true;
+            }
+
+            if (shippingDeliveryMessage) {
+                shippingDeliveryMessage.hidden = true;
+                shippingDeliveryMessage.textContent = "";
+            }
+
+            return;
+        }
+
+
+        const data =
+            currentShippingOptions;
+
+
+        // -----------------------------------------------------
+        // Менеджер
+        // -----------------------------------------------------
+
+        if (shippingManager) {
+
+            let managerText =
+                data.manager?.name || "—";
+
+            if (data.manager?.phone) {
+                managerText +=
+                    ` · ${data.manager.phone}`;
+            }
+
+            if (data.manager?.email) {
+                managerText +=
+                    ` · ${data.manager.email}`;
+            }
+
+            shippingManager.textContent =
+                managerText;
+        }
+
+
+        // -----------------------------------------------------
+        // Подразделение
+        // -----------------------------------------------------
+
+        if (shippingDepartment) {
+
+            shippingDepartment.textContent =
+                data.department?.name || "—";
+        }
+
+
+        if (shippingInfo) {
+            shippingInfo.hidden = false;
+        }
+
+
+        // -----------------------------------------------------
+        // Доставка
+        // -----------------------------------------------------
+
+        if (shippingDeliveryMessage) {
+
+            if (data.delivery_available) {
+
+                shippingDeliveryMessage.className =
+                    "shipping-delivery-message shipping-delivery-available";
+
+                shippingDeliveryMessage.textContent =
+                    "Доставка доступна.";
+
+            } else {
+
+                shippingDeliveryMessage.className =
+                    "shipping-delivery-message shipping-delivery-unavailable";
+
+                if (
+                    Number(data.amount_to_delivery) > 0
+                ) {
+
+                    shippingDeliveryMessage.textContent =
+                        `Доставка доступна от ${
+                            formatMoney(
+                                data.min_delivery_amount
+                            )
+                        }. До минимальной суммы не хватает ${
+                            formatMoney(
+                                data.amount_to_delivery
+                            )
+                        }.`;
+
+                } else {
+
+                    shippingDeliveryMessage.textContent =
+                        "Доставка недоступна для выбранного договора.";
+                }
+            }
+
+            shippingDeliveryMessage.hidden = false;
+        }
+
+
+        updateShippingTypeOptions();
+    }    
+
+    function updateShippingTypeOptions() {
+
+        if (
+            !shippingTypeSelect
+            || !currentShippingOptions
+        ) {
+            return;
+        }
+
+        const pickupAvailable =
+            Boolean(
+                currentShippingOptions
+                    .pickup_available
+            );
+
+        const deliveryAvailable =
+            Boolean(
+                currentShippingOptions
+                    .delivery_available
+            );
+
+
+        Array.from(
+            shippingTypeSelect.options
+        ).forEach(
+            function (option) {
+
+                const text =
+                    option.textContent
+                        .trim()
+                        .toLowerCase();
+
+                if (
+                    text.includes(
+                        "самовывоз"
+                    )
+                ) {
+                    option.disabled =
+                        !pickupAvailable;
+                }
+
+                if (
+                    text.includes(
+                        "достав"
+                    )
+                ) {
+                    option.disabled =
+                        !deliveryAvailable;
+                }
+            }
+        );
+
+
+        /*
+        * Если пользователь ранее выбрал доставку,
+        * а после изменения корзины она стала
+        * недоступной — сбрасываем выбор.
+        */
+
+        const selectedOption =
+            shippingTypeSelect.options[
+                shippingTypeSelect.selectedIndex
+            ];
+
+        if (
+            selectedOption
+            && selectedOption.disabled
+        ) {
+            shippingTypeSelect.value = "";
         }
     }
 
@@ -1789,6 +2099,22 @@ function renderProducts(products) {
         updateCartSummary();
     }
 
+    function getCartTotal() {
+
+        let total = 0;
+
+        cart.forEach(
+            function (item) {
+
+                total += (
+                    Number(item.price || 0)
+                    * Number(item.quantity || 0)
+                );
+            }
+        );
+
+        return total;
+    }
 
     function updateCartSummary() {
 
@@ -3917,15 +4243,17 @@ function renderProducts(products) {
                 
     }
 
-
-
     nextBtn.addEventListener(
         "click",
-        function () {
+        async function () {
 
             if (currentStep < 5) {
 
                 currentStep += 1;
+
+                if (currentStep === 4) {
+                    await loadShippingOptions();
+                }
 
                 showStep(
                     currentStep
