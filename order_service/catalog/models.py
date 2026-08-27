@@ -299,6 +299,15 @@ class Contract(models.Model):
         choices=BRAND_CHOICES,
         verbose_name="Бренд"
     )
+    
+    manager = models.ForeignKey(
+        "Manager",
+        on_delete=models.PROTECT,
+        related_name="contracts",
+        null=True,
+        blank=True,
+        verbose_name="Менеджер",
+    )
 
     is_default = models.BooleanField(
         default=False,
