@@ -5,7 +5,7 @@ from django.shortcuts import (
     render,
 )
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 from django.db.models import Q, Prefetch, Sum
 from django.http import JsonResponse
@@ -26,7 +26,7 @@ from sales.models import Order
 import json
 from .forms import OrderCreateForm
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 
 from orders.services.promo_engine import PromoEngine
 
@@ -2056,5 +2056,228 @@ def apply_promotion(
 
             "gifts":
                 gifts,
+        }
+    )
+
+@login_required
+@require_GET
+def shipping_options(
+    request,
+    customer_id,
+):
+
+    contract_id = str(
+        request.GET.get(
+            "contract_id",
+            "",
+        )
+    ).strip()
+
+    order_amount_raw = str(
+        request.GET.get(
+            "order_amount",
+            "0",
+        )
+    ).strip()
+
+    if not contract_id:
+
+        return JsonResponse(
+            {
+                "error":
+                    "Не указан договор.",
+            },
+            status=400,
+        )
+
+    try:
+
+        order_amount = Decimal(
+            order_amount_raw
+        )
+
+    except (
+        InvalidOperation,
+        ValueError,
+    ):
+
+        return JsonResponse(
+            {
+                "error":
+                    "Некорректная сумма заказа.",
+            },
+            status=400,
+        )
+
+    if order_amount < 0:
+
+        return JsonResponse(
+            {
+                "error":
+                    "Сумма заказа не может быть отрицательной.",
+            },
+            status=400,
+        )
+
+    contract = (
+        Contract.objects
+        .select_related(
+            "manager",
+            "manager__department",
+        )
+        .filter(
+            contract_id=contract_id,
+            legal_entity_id=customer_id,
+            is_active=True,
+        )
+        .first()
+    )
+
+    if contract is None:
+
+        return JsonResponse(
+            {
+                "error":
+                    "Договор не найден или недоступен.",
+            },
+            status=404,
+        )
+
+    manager = contract.manager
+
+    if manager is None:
+
+        return JsonResponse(
+            {
+                "error":
+                    "Для договора не указан менеджер.",
+                "pickup_available":
+                    True,
+                "delivery_available":
+                    False,
+            },
+            status=200,
+        )
+
+    department = manager.department
+
+    if department is None:
+
+        return JsonResponse(
+            {
+                "error":
+                    "Для менеджера не указано подразделение.",
+                "pickup_available":
+                    True,
+                "delivery_available":
+                    False,
+            },
+            status=200,
+        )
+
+    if not department.is_active:
+
+        return JsonResponse(
+            {
+                "error":
+                    "Подразделение не участвует "
+                    "в автоматическом расчёте доставки.",
+                "pickup_available":
+                    True,
+                "delivery_available":
+                    False,
+
+                "manager": {
+                    "id":
+                        str(
+                            manager.manager_id
+                        ),
+
+                    "name":
+                        manager.name,
+                },
+
+                "department": {
+                    "id":
+                        str(
+                            department.department_id
+                        ),
+
+                    "name":
+                        department.name,
+                },
+            },
+            status=200,
+        )
+
+    min_delivery_amount = (
+        department.min_delivery_amount
+        or Decimal("0.00")
+    )
+
+    delivery_available = (
+        order_amount
+        >= min_delivery_amount
+    )
+
+    amount_to_delivery = max(
+        Decimal("0.00"),
+        min_delivery_amount
+        - order_amount,
+    )
+
+    return JsonResponse(
+        {
+            "contract_id":
+                str(
+                    contract.contract_id
+                ),
+
+            "manager": {
+                "id":
+                    str(
+                        manager.manager_id
+                    ),
+
+                "name":
+                    manager.name,
+
+                "email":
+                    manager.email or "",
+
+                "phone":
+                    manager.phone or "",
+            },
+
+            "department": {
+                "id":
+                    str(
+                        department.department_id
+                    ),
+
+                "name":
+                    department.name,
+            },
+
+            "pickup_available":
+                True,
+
+            "delivery_available":
+                delivery_available,
+
+            "order_amount":
+                str(
+                    order_amount
+                ),
+
+            "min_delivery_amount":
+                str(
+                    min_delivery_amount
+                ),
+
+            "amount_to_delivery":
+                str(
+                    amount_to_delivery
+                ),
         }
     )

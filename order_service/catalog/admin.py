@@ -259,6 +259,7 @@ class ContractAdmin(admin.ModelAdmin):
         "contract_id",
         "legal_entity",
         "brand",
+        "manager",
         "organization_id",
         "is_default",
         "is_active",
@@ -266,6 +267,7 @@ class ContractAdmin(admin.ModelAdmin):
 
     list_filter = (
         "brand",
+        "manager__department",
         "is_default",
         "is_active",
     )
