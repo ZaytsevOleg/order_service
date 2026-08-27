@@ -2119,6 +2119,26 @@ def shipping_options(
             status=400,
         )
 
+    access = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            legal_entity_id=customer_id,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+        .first()
+    )
+
+    if access is None:
+        return JsonResponse(
+            {
+                "error":
+                    "Клиент недоступен.",
+            },
+            status=403,
+        )
+
     contract = (
         Contract.objects
         .select_related(
@@ -2126,8 +2146,9 @@ def shipping_options(
             "manager__department",
         )
         .filter(
-            contract_id=contract_id,
+            pk=contract_id,
             legal_entity_id=customer_id,
+            brand=request.brand.brand_id,
             is_active=True,
         )
         .first()
