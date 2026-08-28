@@ -59,8 +59,22 @@
 
                         <div class="form-field">
                             <label
-                                for="{{ form.customer.id_for_label }}"
-                            >
+                                for="{{ form.payment_method.id_for_label }}">
+                                Форма оплаты
+                            </label>
+
+                            {{ form.payment_method }}
+
+                            {% if form.payment_method.errors %}
+                                <div class="field-errors">
+                                    {{ form.payment_method.errors }}
+                                </div>
+                            {% endif %}
+                        </div>                        
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.customer.id_for_label }}">
                                 Юр. лицо
                             </label>
 
@@ -76,8 +90,7 @@
 
                         <div class="form-field">
                             <label
-                                for="{{ form.contract.id_for_label }}"
-                            >
+                                for="{{ form.contract.id_for_label }}">
                                 Договор
                             </label>
 
@@ -287,7 +300,9 @@
                     </div>
 
 
-                        <div id="deliveryAddressField">
+                        <div
+                            id="deliveryAddressField"
+                            class="form-field">
                             <label for="{{ form.delivery_address.id_for_label }}">
                                 Адрес доставки
                             </label>
@@ -297,8 +312,7 @@
                             <div
                                 id="deliveryAddressHint"
                                 class="field-hint"
-                                hidden
-                            >
+                                hidden>
                                 Для доставки необходимо выбрать адрес.
                             </div>
                         </div>
@@ -315,22 +329,6 @@
                             {% if form.shipping_date.errors %}
                                 <div class="field-errors">
                                     {{ form.shipping_date.errors }}
-                                </div>
-                            {% endif %}
-                        </div>
-
-
-                        <div class="form-field">
-                            <label
-                                for="{{ form.payment_method.id_for_label }}">
-                                Форма оплаты
-                            </label>
-
-                            {{ form.payment_method }}
-
-                            {% if form.payment_method.errors %}
-                                <div class="field-errors">
-                                    {{ form.payment_method.errors }}
                                 </div>
                             {% endif %}
                         </div>
@@ -1038,7 +1036,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 ) {
 
                     shippingDeliveryMessage.textContent =
-                        `Доставка доступна от ${
+                        `Доставка доступна при заказе от ${
                             formatMoney(
                                 data.min_delivery_amount
                             )
@@ -2214,6 +2212,10 @@ function renderProducts(products) {
 
         renderCartItems();
         updateNextStepState();
+        
+        if (currentStep === 4) {
+            loadShippingOptions();
+        }
     }
 
     async function loadPromotions() {
@@ -3459,7 +3461,6 @@ function renderProducts(products) {
         if (
             !shippingTypeSelect
             || !shippingDateInput
-            || !paymentMethodSelect
         ) {
             return false;
         }
@@ -3499,10 +3500,6 @@ function renderProducts(products) {
             return false;
         }
 
-        if (!paymentMethodSelect.value) {
-            return false;
-        }
-
         return true;
     }
 
@@ -3537,6 +3534,8 @@ function renderProducts(products) {
                 && customerSelect.value
                 && contractSelect
                 && contractSelect.value
+                && paymentMethodSelect
+                && paymentMethodSelect.value
             );
 
         } else if (currentStep === 2) {
