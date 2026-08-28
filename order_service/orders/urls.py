@@ -52,4 +52,9 @@ urlpatterns = [
         views.shipping_options,
         name="shipping_options",
     ),
+    path(
+        "api/customers/",
+        views.available_customers,
+        name="available_customers",
+    ),
 ]

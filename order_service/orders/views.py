@@ -12,6 +12,7 @@ from django.http import JsonResponse
 
 from catalog.models import (
     Contract,
+    LegalEntity,
     LegalEntityDeliveryAddress,
     Price,
     UserLegalEntityAccess,
@@ -2300,5 +2301,88 @@ def shipping_options(
                 str(
                     amount_to_delivery
                 ),
+        }
+    )
+
+@login_required
+def available_customers(request):
+
+    payment_method = (
+        request.GET.get(
+            "payment_method",
+            "",
+        )
+        .strip()
+    )
+
+    if payment_method not in {
+        Order.PAYMENT_CASH,
+        Order.PAYMENT_CASHLESS,
+    }:
+        return JsonResponse(
+            {
+                "error":
+                    "Некорректная форма оплаты.",
+            },
+            status=400,
+        )
+
+    accesses = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+    )
+
+    customers = (
+        LegalEntity.objects
+        .filter(
+            customer_accesses__in=accesses,
+            contracts__brand=request.brand.brand_id,
+            contracts__is_active=True,
+        )
+        .distinct()
+    )
+
+    if payment_method == Order.PAYMENT_CASH:
+
+        customers = customers.filter(
+            client_type=
+                LegalEntity.CLIENT_TYPE_PERSON,
+        )
+
+    elif payment_method == Order.PAYMENT_CASHLESS:
+
+        customers = customers.filter(
+            client_type__in=[
+                LegalEntity.CLIENT_TYPE_LLC,
+                LegalEntity.CLIENT_TYPE_IE,
+            ],
+        )
+
+    customers = customers.order_by(
+        "name",
+    )
+
+    return JsonResponse(
+        {
+            "customers": [
+                {
+                    "id":
+                        str(customer.pk),
+
+                    "name":
+                        customer.name,
+
+                    "client_type":
+                        customer.client_type,
+
+                    "client_type_name":
+                        customer.get_client_type_display(),
+                }
+                for customer in customers
+            ],
         }
     )

@@ -4,6 +4,7 @@ from catalog.models import (
     Contract,
     LegalEntityDeliveryAddress,
     UserLegalEntityAccess,
+    LegalEntity
 )
 from sales.models import Order
 
@@ -30,7 +31,13 @@ class OrderCreateForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, user=None, brand=None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        user=None,
+        brand=None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
 
         self.user = user
@@ -53,6 +60,23 @@ class OrderCreateForm(forms.ModelForm):
         if not user:
             return
 
+        # -----------------------------------------------------
+        # Форма оплаты
+        # -----------------------------------------------------
+
+        payment_method = (
+            self.data.get("payment_method")
+            or getattr(
+                self.instance,
+                "payment_method",
+                None,
+            )
+        )
+
+        # -----------------------------------------------------
+        # Доступные пользователю клиенты
+        # -----------------------------------------------------
+
         accesses = (
             UserLegalEntityAccess.objects
             .filter(
@@ -66,7 +90,7 @@ class OrderCreateForm(forms.ModelForm):
             )
         )
 
-        self.fields["customer"].queryset = (
+        customers = (
             self.fields["customer"]
             .queryset
             .model.objects
@@ -74,8 +98,54 @@ class OrderCreateForm(forms.ModelForm):
                 customer_accesses__in=accesses,
             )
             .distinct()
-            .order_by("name")
         )
+
+        # -----------------------------------------------------
+        # Ограничение по бренду
+        # -----------------------------------------------------
+
+        if brand:
+            customers = (
+                customers
+                .filter(
+                    contracts__brand=brand.brand_id,
+                    contracts__is_active=True,
+                )
+                .distinct()
+            )
+
+        # -----------------------------------------------------
+        # Фильтрация по форме оплаты
+        # -----------------------------------------------------
+
+        if payment_method == Order.PAYMENT_CASH:
+
+            customers = customers.filter(
+                client_type=
+                    LegalEntity.CLIENT_TYPE_PERSON,
+            )
+
+        elif payment_method == Order.PAYMENT_CASHLESS:
+
+            customers = customers.filter(
+                client_type__in=[
+                    LegalEntity.CLIENT_TYPE_LLC,
+                    LegalEntity.CLIENT_TYPE_IE,
+                ],
+            )
+
+        else:
+            # Пока форма оплаты не выбрана,
+            # клиента выбирать не даём.
+            customers = customers.none()
+
+        self.fields["customer"].queryset = (
+            customers.order_by("name")
+        )
+
+        # -----------------------------------------------------
+        # Выбранный клиент
+        # -----------------------------------------------------
 
         customer_id = (
             self.data.get("customer")
@@ -86,18 +156,8 @@ class OrderCreateForm(forms.ModelForm):
             )
         )
 
-        if brand:
-            self.fields["customer"].queryset = (
-                self.fields["customer"]
-                .queryset
-                .filter(
-                    contracts__brand=brand.brand_id,
-                    contracts__is_active=True,
-                )
-                .distinct()
-            )
-
         if customer_id:
+
             contract_filters = {
                 "legal_entity_id": customer_id,
                 "is_active": True,
@@ -126,3 +186,27 @@ class OrderCreateForm(forms.ModelForm):
                 )
                 .order_by("address")
             )
+
+    def clean(self):
+
+        cleaned_data = super().clean()
+
+        customer = cleaned_data.get("customer")
+
+        payment_method = cleaned_data.get(
+                "payment_method"
+            )
+
+        if (
+            customer
+            and payment_method
+            and customer.allowed_payment_method
+                != payment_method
+        ):
+            self.add_error(
+                "payment_method",
+                "Выбранная форма оплаты "
+                "недоступна для этого клиента.",
+            )
+
+        return cleaned_data
