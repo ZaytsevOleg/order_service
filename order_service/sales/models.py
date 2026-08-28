@@ -35,6 +35,14 @@ class Order(models.Model):
         (PAYMENT_CASHLESS, "Безналичная оплата"),
     ]
 
+    SHIPPING_PICKUP = "pickup"
+    SHIPPING_DELIVERY = "delivery"
+
+    SHIPPING_CHOICES = [
+        (SHIPPING_PICKUP, "Самовывоз"),
+        (SHIPPING_DELIVERY, "Доставка"),
+    ]
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -99,7 +107,8 @@ class Order(models.Model):
     )
 
     shipping_type = models.CharField(
-        max_length=100,
+        max_length=20,
+        choices=SHIPPING_CHOICES,
         verbose_name="Способ отгрузки",
     )
     shipping_date = models.DateField(
