@@ -209,10 +209,6 @@
                     <div class="order-step-heading">
                         <div>
                             <h2>Отгрузка</h2>
-                            <div style="background:red;color:white;padding:20px;font-size:20px;">
-                                TEST SHIPPING TEMPLATE
-                            </div>
-
                             <p class="order-step-description">
                                 Выберите способ получения заказа.
                             </p>
@@ -265,19 +261,20 @@
                         </div>
 
 
-                        <div class="form-field">
-                            <label
-                                for="{{ form.delivery_address.id_for_label }}" >
+                        <div id="deliveryAddressField">
+                            <label for="{{ form.delivery_address.id_for_label }}">
                                 Адрес доставки
                             </label>
 
                             {{ form.delivery_address }}
 
-                            {% if form.delivery_address.errors %}
-                                <div class="field-errors">
-                                    {{ form.delivery_address.errors }}
-                                </div>
-                            {% endif %}
+                            <div
+                                id="deliveryAddressHint"
+                                class="field-hint"
+                                hidden
+                            >
+                                Для доставки необходимо выбрать адрес.
+                            </div>
                         </div>
 
 
@@ -675,6 +672,16 @@ document.addEventListener("DOMContentLoaded", function () {
             ".order-create-actions"
         );    
 
+    const deliveryAddressField =
+        document.getElementById(
+            "deliveryAddressField"
+        );
+
+    const deliveryAddressHint =
+        document.getElementById(
+            "deliveryAddressHint"
+        );
+
     async function loadCustomerOptions() {
 
         if (
@@ -1018,6 +1025,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
         updateShippingTypeOptions();
+        updateShippingFields();
+        updateNextStepState();
     }    
 
     function updateShippingTypeOptions() {
@@ -3374,6 +3383,59 @@ function renderProducts(products) {
     } 
 
 
+    function isShippingStepValid() {
+
+        if (
+            !shippingTypeSelect
+            || !shippingDateInput
+            || !paymentMethodSelect
+        ) {
+            return false;
+        }
+
+        const shippingType =
+            shippingTypeSelect.value;
+
+        if (
+            shippingType !== "pickup"
+            && shippingType !== "delivery"
+        ) {
+            return false;
+        }
+
+        if (
+            shippingType === "delivery"
+            && (
+                !currentShippingOptions
+                || !currentShippingOptions
+                    .delivery_available
+            )
+        ) {
+            return false;
+        }
+
+        if (
+            shippingType === "delivery"
+            && (
+                !addressSelect
+                || !addressSelect.value
+            )
+        ) {
+            return false;
+        }
+
+        if (!shippingDateInput.value) {
+            return false;
+        }
+
+        if (!paymentMethodSelect.value) {
+            return false;
+        }
+
+        return true;
+    }
+
+
     function updateNextStepState() {
 
         if (!nextBtn) {
@@ -3391,9 +3453,12 @@ function renderProducts(products) {
         * можно перейти на промо даже с пустой корзиной.
         * Блокируем только при дефиците товара.
         *
-        * Проверку суммы заказа будем делать
-        * перед финальным оформлением.
+        * Шаг 4:
+        * проверяем способ отгрузки,
+        * адрес при доставке,
+        * дату и форму оплаты.
         */
+
         if (currentStep === 1) {
 
             nextBtn.disabled = !(
@@ -3407,6 +3472,11 @@ function renderProducts(products) {
 
             nextBtn.disabled =
                 hasShortage;
+
+        } else if (currentStep === 4) {
+
+            nextBtn.disabled =
+                !isShippingStepValid();
 
         } else {
 
@@ -4220,6 +4290,144 @@ function renderProducts(products) {
     }
 
 
+    function updateShippingFields() {
+
+        if (
+            !shippingTypeSelect
+            || !addressSelect
+        ) {
+            return;
+        }
+
+        const isDelivery =
+            shippingTypeSelect.value
+            === "delivery";
+
+        if (deliveryAddressField) {
+            deliveryAddressField.hidden =
+                !isDelivery;
+        }
+
+        addressSelect.required =
+            isDelivery;
+
+        addressSelect.disabled =
+            !isDelivery;
+
+        if (!isDelivery) {
+            addressSelect.value = "";
+        }
+
+        updateNextStepState();
+    }
+
+    if (shippingTypeSelect) {
+
+        shippingTypeSelect.addEventListener(
+            "change",
+            function () {
+
+                updateShippingFields();
+                updateConfirmation();
+            }
+        );
+    }
+
+    if (addressSelect) {
+
+        addressSelect.addEventListener(
+            "change",
+            function () {
+
+                if (deliveryAddressHint) {
+                    deliveryAddressHint.hidden =
+                        Boolean(
+                            addressSelect.value
+                        );
+                }
+
+                updateNextStepState();
+                updateConfirmation();
+            }
+        );
+    }
+
+    if (shippingDateInput) {
+
+        const today =
+            new Date();
+
+        const year =
+            today.getFullYear();
+
+        const month =
+            String(
+                today.getMonth() + 1
+            ).padStart(2, "0");
+
+        const day =
+            String(
+                today.getDate()
+            ).padStart(2, "0");
+
+        shippingDateInput.min =
+            `${year}-${month}-${day}`;
+    }
+
+
+    function isShippingStepValid() {
+
+        if (
+            !shippingTypeSelect
+            || !shippingDateInput
+            || !paymentMethodSelect
+        ) {
+            return false;
+        }
+
+        const shippingType =
+            shippingTypeSelect.value;
+
+        if (
+            shippingType !== "pickup"
+            && shippingType !== "delivery"
+        ) {
+            return false;
+        }
+
+        // На случай изменения корзины после расчёта
+        if (
+            shippingType === "delivery"
+            && (
+                !currentShippingOptions
+                || !currentShippingOptions
+                    .delivery_available
+            )
+        ) {
+            return false;
+        }
+
+        if (
+            shippingType === "delivery"
+            && (
+                !addressSelect
+                || !addressSelect.value
+            )
+        ) {
+            return false;
+        }
+
+        if (!shippingDateInput.value) {
+            return false;
+        }
+
+        if (!paymentMethodSelect.value) {
+            return false;
+        }
+
+        return true;
+    }
+
     function updateBrandFromContract() {
 
         if (
@@ -4364,7 +4572,57 @@ function renderProducts(products) {
         );
     }
 
+    if (shippingTypeSelect) {
 
+        shippingTypeSelect.addEventListener(
+            "change",
+            function () {
+
+                updateShippingFields();
+                updateNextStepState();
+                updateConfirmation();
+            }
+        );
+    }
+
+
+    if (addressSelect) {
+
+        addressSelect.addEventListener(
+            "change",
+            function () {
+
+                updateNextStepState();
+                updateConfirmation();
+            }
+        );
+    }
+
+
+    if (shippingDateInput) {
+
+        shippingDateInput.addEventListener(
+            "change",
+            function () {
+
+                updateNextStepState();
+                updateConfirmation();
+            }
+        );
+    }
+
+
+    if (paymentMethodSelect) {
+
+        paymentMethodSelect.addEventListener(
+            "change",
+            function () {
+
+                updateNextStepState();
+                updateConfirmation();
+            }
+        );
+    }
     
     prevBtn.addEventListener(
         "click",
@@ -4546,6 +4804,10 @@ function renderProducts(products) {
         if (step === 3) {
             loadPromotions();
         }
+
+        if (step === 4) {
+            loadShippingOptions();
+        }        
 
         if (step === 5) {
             updateConfirmation();
