@@ -1488,6 +1488,26 @@ body.promo-modal-open {
     color: var(--brand-primary);
 }
 
+/* Поля внутри grid должны иметь возможность сжиматься */
+.form-grid > * {
+    min-width: 0;
+}
+
+/* Адрес доставки не должен расширять колонку */
+#deliveryAddressField {
+    grid-column: 1 / -1;
+    min-width: 0;
+    width: 100%;
+}
+
+#deliveryAddressField select {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
 
 @media (max-width: 600px) {
 
