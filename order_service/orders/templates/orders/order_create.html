@@ -245,20 +245,46 @@
 
                     <div class="form-grid">
 
-                        <div class="form-field">
-                            <label
-                                for="{{ form.shipping_type.id_for_label }}">
-                                Способ отгрузки
+                    <div class="form-field">
+                        <label>
+                            Способ отгрузки
+                        </label>
+
+                        <div class="shipping-type-options">
+
+                            <label class="shipping-type-option">
+                                <input
+                                    type="radio"
+                                    name="shipping_type_ui"
+                                    value="pickup"
+                                    checked>
+                                <span>
+                                    Самовывоз
+                                </span>
                             </label>
 
-                            {{ form.shipping_type }}
+                            <label class="shipping-type-option">
+                                <input
+                                    type="radio"
+                                    name="shipping_type_ui"
+                                    value="delivery">
+                                <span>
+                                    Доставка
+                                </span>
+                            </label>
 
-                            {% if form.shipping_type.errors %}
-                                <div class="field-errors">
-                                    {{ form.shipping_type.errors }}
-                                </div>
-                            {% endif %}
                         </div>
+
+                        <div hidden>
+                            {{ form.shipping_type }}
+                        </div>
+
+                        {% if form.shipping_type.errors %}
+                            <div class="field-errors">
+                                {{ form.shipping_type.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
 
 
                         <div id="deliveryAddressField">
@@ -548,6 +574,9 @@ document.addEventListener("DOMContentLoaded", function () {
         "submitOrder"
     );
 
+    const shippingTypeRadios = document.querySelectorAll(
+        'input[name="shipping_type_ui"]'
+    );
 
     const customerSelect = document.getElementById(
         "id_customer"
@@ -569,20 +598,17 @@ document.addEventListener("DOMContentLoaded", function () {
         "id_shipping_date"
     );
 
-    const shippingInfo =
-        document.getElementById(
-            "shippingInfo"
-        );
+    const shippingInfo = document.getElementById(
+        "shippingInfo"
+    );
 
-    const shippingManager =
-        document.getElementById(
-            "shippingManager"
-        );
+    const shippingManager = document.getElementById(
+        "shippingManager"
+    );
 
-    const shippingDepartment =
-        document.getElementById(
-            "shippingDepartment"
-        );
+    const shippingDepartment = document.getElementById(
+        "shippingDepartment"
+    );
 
     const shippingDeliveryMessage =
         document.getElementById(
@@ -991,7 +1017,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     "shipping-delivery-message shipping-delivery-available";
 
                 shippingDeliveryMessage.textContent =
-                    "Доставка доступна.";
+                    `Доставка доступна. Минимальная сумма заказа — ${
+                        formatMoney(
+                            data.min_delivery_amount
+                        )
+                    }.`;
 
             } else {
 
@@ -1031,73 +1061,80 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function updateShippingTypeOptions() {
 
-        if (
-            !shippingTypeSelect
-            || !currentShippingOptions
-        ) {
+        const pickupRadio =
+            document.querySelector(
+                'input[name="shipping_type_ui"][value="pickup"]'
+            );
+
+        const deliveryRadio =
+            document.querySelector(
+                'input[name="shipping_type_ui"][value="delivery"]'
+            );
+
+
+        if (!currentShippingOptions) {
             return;
         }
 
-        const pickupAvailable =
-            Boolean(
-                currentShippingOptions
-                    .pickup_available
-            );
 
-        const deliveryAvailable =
-            Boolean(
-                currentShippingOptions
-                    .delivery_available
-            );
+        if (pickupRadio) {
+
+            pickupRadio.disabled =
+                !currentShippingOptions
+                    .pickup_available;
+        }
 
 
-        Array.from(
-            shippingTypeSelect.options
-        ).forEach(
-            function (option) {
+        if (deliveryRadio) {
 
-                const text =
-                    option.textContent
-                        .trim()
-                        .toLowerCase();
-
-                if (
-                    text.includes(
-                        "самовывоз"
-                    )
-                ) {
-                    option.disabled =
-                        !pickupAvailable;
-                }
-
-                if (
-                    text.includes(
-                        "достав"
-                    )
-                ) {
-                    option.disabled =
-                        !deliveryAvailable;
-                }
-            }
-        );
+            deliveryRadio.disabled =
+                !currentShippingOptions
+                    .delivery_available;
+        }
 
 
         /*
-        * Если пользователь ранее выбрал доставку,
-        * а после изменения корзины она стала
-        * недоступной — сбрасываем выбор.
+        * Если доставка была выбрана,
+        * но после пересчёта стала недоступна,
+        * автоматически переключаемся на самовывоз.
         */
 
-        const selectedOption =
-            shippingTypeSelect.options[
-                shippingTypeSelect.selectedIndex
-            ];
+        if (
+            deliveryRadio
+            && deliveryRadio.checked
+            && deliveryRadio.disabled
+        ) {
+
+            if (
+                pickupRadio
+                && !pickupRadio.disabled
+            ) {
+                pickupRadio.checked = true;
+            }
+
+            if (shippingTypeSelect) {
+                shippingTypeSelect.value =
+                    "pickup";
+            }
+        }
+
+
+        /*
+        * Синхронизируем hidden Django select
+        * с фактически выбранным radio.
+        */
+
+        const checked =
+            document.querySelector(
+                'input[name="shipping_type_ui"]:checked'
+            );
 
         if (
-            selectedOption
-            && selectedOption.disabled
+            checked
+            && shippingTypeSelect
         ) {
-            shippingTypeSelect.value = "";
+            shippingTypeSelect.value =
+                checked.value;
         }
     }
 
@@ -3368,6 +3405,35 @@ function renderProducts(products) {
         );
     }
 
+    function syncShippingTypeFromRadio() {
+
+        const checked =
+            document.querySelector(
+                'input[name="shipping_type_ui"]:checked'
+            );
+
+        if (
+            checked
+            && shippingTypeSelect
+        ) {
+            shippingTypeSelect.value =
+                checked.value;
+        }
+
+        updateShippingFields();
+        updateNextStepState();
+        updateConfirmation();
+    }    
+
+    shippingTypeRadios.forEach(
+        function (radio) {
+
+            radio.addEventListener(
+                "change",
+                syncShippingTypeFromRadio
+            );
+        }
+    );
 
     function closePromoDetails() {
 
