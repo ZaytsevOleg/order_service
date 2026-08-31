@@ -1538,25 +1538,47 @@ body.promo-modal-open {
 
 /* Типографика календаря Flatpickr */
 
-.flatpickr-current-month {
-    font-size: 18px;
-    font-weight: 400;
+/* Компактный календарь Flatpickr */
+
+.flatpickr-calendar {
+    width: 280px;
 }
 
-.flatpickr-current-month .flatpickr-monthDropdown-months,
-.flatpickr-current-month input.cur-year {
-    font-size: 18px;
-    font-weight: 400;
+.flatpickr-days {
+    width: 280px;
 }
 
-span.flatpickr-weekday {
-    font-size: 13px;
-    font-weight: 600;
+.dayContainer {
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
 }
 
 .flatpickr-day {
-    font-size: 14px;
-    font-weight: 400;
+    max-width: 40px;
+    height: 34px;
+    line-height: 34px;
+}
+
+.flatpickr-weekdays {
+    height: 28px;
+}
+
+.flatpickr-weekdaycontainer {
+    width: 280px;
+}
+
+.flatpickr-months .flatpickr-month {
+    height: 38px;
+}
+
+.flatpickr-current-month {
+    padding-top: 5px;
+}
+.flatpickr-current-month,
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month input.cur-year {
+    font-size: 17px;
 }
 @media (max-width: 600px) {
 
