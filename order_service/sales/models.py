@@ -1,5 +1,5 @@
 import uuid
-
+from datetime import time
 from django.conf import settings
 from django.db import models
 
@@ -237,3 +237,93 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.order} — {self.product_name}"
+
+class ShippingSettings(models.Model):
+    delivery_working_days = models.PositiveSmallIntegerField(
+        default=3,
+        verbose_name="Рабочих дней до доставки",
+    )
+
+    delivery_cutoff_time = models.TimeField(
+        default=time(13, 0),
+        verbose_name="Время отсечения для доставки",
+        help_text=(
+            "Заказы после этого времени считаются "
+            "принятыми следующим рабочим днём."
+        ),
+    )
+
+    pickup_same_day_enabled = models.BooleanField(
+        default=True,
+        verbose_name="Разрешать самовывоз в день заказа",
+    )
+
+    pickup_same_day_cutoff = models.TimeField(
+        default=time(13, 0),
+        verbose_name="Время отсечения для самовывоза",
+        help_text=(
+            "После этого времени самовывоз "
+            "доступен со следующего рабочего дня."
+        ),
+    )
+
+    booking_horizon_days = models.PositiveSmallIntegerField(
+        default=60,
+        verbose_name="Горизонт выбора даты, дней",
+    )
+
+    class Meta:
+        verbose_name = "Настройка отгрузки"
+        verbose_name_plural = "Настройки отгрузки"
+
+    def __str__(self):
+        return "Настройки отгрузки"
+
+
+class WorkCalendarException(models.Model):
+    DAY_TYPE_WORKING = "working"
+    DAY_TYPE_NON_WORKING = "non_working"
+
+    DAY_TYPE_CHOICES = [
+        (
+            DAY_TYPE_WORKING,
+            "Рабочий день",
+        ),
+        (
+            DAY_TYPE_NON_WORKING,
+            "Нерабочий день",
+        ),
+    ]
+
+    date = models.DateField(
+        unique=True,
+        verbose_name="Дата",
+    )
+
+    day_type = models.CharField(
+        max_length=20,
+        choices=DAY_TYPE_CHOICES,
+        verbose_name="Тип дня",
+    )
+
+    name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Название",
+    )
+
+    comment = models.TextField(
+        blank=True,
+        verbose_name="Комментарий",
+    )
+
+    class Meta:
+        verbose_name = "Исключение производственного календаря"
+        verbose_name_plural = "Исключения производственного календаря"
+        ordering = ("date",)
+
+    def __str__(self):
+        return (
+            f"{self.date:%d.%m.%Y} — "
+            f"{self.get_day_type_display()}"
+        )
