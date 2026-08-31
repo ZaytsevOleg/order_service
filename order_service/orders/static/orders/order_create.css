@@ -1508,51 +1508,17 @@ body.promo-modal-open {
     box-sizing: border-box;
 }
 
-
-/* Дата отгрузки */
-
 .shipping-date-input {
-    display: block;
-
     width: 100%;
-    min-width: 0;
-    height: 44px;
-
-    padding: 0 14px;
-
     box-sizing: border-box;
-
-    background: var(--brand-control-bg);
-    color: var(--brand-text);
-
     border: 1px solid var(--brand-border);
-    border-radius: 12px;
-
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 400;
-
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 15px;
     outline: none;
-    cursor: pointer;
-
-    transition:
-        border-color 0.2s ease,
-        box-shadow 0.2s ease;
-}
-
-.shipping-date-input:hover,
-.shipping-date-input:focus {
-    border-color: var(--brand-primary);
-}
-
-.shipping-date-input:focus {
-    box-shadow:
-        0 0 0 3px
-        color-mix(
-            in srgb,
-            var(--brand-primary) 12%,
-            transparent
-        );
+    background: var(--brand-surface);
+    color: var(--brand-text);
+    font-family: inherit;
 }
 
 @media (max-width: 600px) {
