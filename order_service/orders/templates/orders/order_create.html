@@ -3,6 +3,9 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'orders/order_create.css' %}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr">
+</script>
 {% endblock %}
 {% block content %}
 <div class="order-create-page">
@@ -596,6 +599,8 @@ document.addEventListener("DOMContentLoaded", function () {
         "id_shipping_date"
     );
 
+    let shippingDatePicker = null;
+
     const shippingInfo = document.getElementById(
         "shippingInfo"
     );
@@ -710,6 +715,86 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById(
             "deliveryAddressHint"
         );
+
+    function isShippingDateAllowed(date) {
+
+        if (!currentShippingOptions) {
+            return false;
+        }
+
+        const year = date.getFullYear();
+
+        const month = String(
+            date.getMonth() + 1
+        ).padStart(2, "0");
+
+        const day = String(
+            date.getDate()
+        ).padStart(2, "0");
+
+        const dateString =
+            `${year}-${month}-${day}`;
+
+        const exceptions =
+            currentShippingOptions
+                .calendar_exceptions
+            || {};
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                exceptions,
+                dateString
+            )
+        ) {
+            return (
+                exceptions[dateString]
+                === "working"
+            );
+        }
+
+        const weekDay =
+            date.getDay();
+
+        return (
+            weekDay !== 0
+            && weekDay !== 6
+        );
+    }
+
+    function initShippingDatePicker() {
+
+        if (
+            !shippingDateInput
+            || typeof flatpickr === "undefined"
+        ) {
+            return;
+        }
+
+        shippingDatePicker = flatpickr(
+            shippingDateInput,
+            {
+                dateFormat: "Y-m-d",
+                altInput: true,
+                altFormat: "d.m.Y",
+                allowInput: false,
+
+                disable: [
+                    function (date) {
+                        return !isShippingDateAllowed(
+                            date
+                        );
+                    }
+                ],
+
+                onChange: function () {
+                    updateNextStepState();
+                    updateConfirmation();
+                },
+            }
+        );
+    }
+
+    initShippingDatePicker();
 
     async function loadCustomerOptions() {
 
@@ -950,7 +1035,7 @@ document.addEventListener("DOMContentLoaded", function () {
     function updateShippingDateRules() {
 
         if (
-            !shippingDateInput
+            !shippingDatePicker
             || !shippingTypeSelect
             || !currentShippingOptions
         ) {
@@ -976,27 +1061,56 @@ document.addEventListener("DOMContentLoaded", function () {
                 || "";
         }
 
-        if (!minDate) {
-            shippingDateInput.removeAttribute(
-                "min"
-            );
+        const maxDate =
+            currentShippingOptions
+                .booking_max_date
+            || "";
 
-            return;
+        shippingDatePicker.set(
+            "minDate",
+            minDate || null
+        );
+
+        shippingDatePicker.set(
+            "maxDate",
+            maxDate || null
+        );
+
+        const selectedDate =
+            shippingDatePicker
+                .selectedDates[0];
+
+        if (selectedDate) {
+
+            const selectedString =
+                shippingDatePicker.formatDate(
+                    selectedDate,
+                    "Y-m-d"
+                );
+
+            const tooEarly =
+                minDate
+                && selectedString < minDate;
+
+            const tooLate =
+                maxDate
+                && selectedString > maxDate;
+
+            const invalidWorkingDay =
+                !isShippingDateAllowed(
+                    selectedDate
+                );
+
+            if (
+                tooEarly
+                || tooLate
+                || invalidWorkingDay
+            ) {
+                shippingDatePicker.clear();
+            }
         }
 
-        shippingDateInput.min = minDate;
-
-        /*
-        * Если пользователь уже выбрал дату,
-        * которая стала недопустимой после
-        * смены способа отгрузки — очищаем её.
-        */
-        if (
-            shippingDateInput.value
-            && shippingDateInput.value < minDate
-        ) {
-            shippingDateInput.value = "";
-        }
+        shippingDatePicker.redraw();
     }
 
     function renderShippingOptions() {

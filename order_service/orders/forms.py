@@ -24,7 +24,9 @@ class OrderCreateForm(forms.ModelForm):
 
         widgets = {
             "shipping_date": forms.DateInput(
-                attrs={"type": "date"},
+                attrs={
+                    "autocomplete": "off",
+                },
             ),
             "comment": forms.Textarea(
                 attrs={"rows": 3},
