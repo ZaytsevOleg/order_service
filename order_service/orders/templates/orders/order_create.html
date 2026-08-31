@@ -3,8 +3,16 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'orders/order_create.css' %}">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr">
+<link
+    rel="stylesheet"
+    href="{% static 'vendor/flatpickr/flatpickr.min.css' %}"
+>
+<script
+    src="{% static 'vendor/flatpickr/flatpickr.min.js' %}">
+</script>
+
+<script
+    src="{% static 'vendor/flatpickr/l10n/ru.js' %}">
 </script>
 {% endblock %}
 {% block content %}
@@ -773,9 +781,16 @@ document.addEventListener("DOMContentLoaded", function () {
         shippingDatePicker = flatpickr(
             shippingDateInput,
             {
+                locale: {
+                    ...flatpickr.l10ns.ru,
+                    firstDayOfWeek: 1,
+                },
+
                 dateFormat: "Y-m-d",
+
                 altInput: true,
                 altFormat: "d.m.Y",
+
                 allowInput: false,
 
                 disable: [
