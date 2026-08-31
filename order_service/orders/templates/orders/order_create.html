@@ -3530,13 +3530,14 @@ function renderProducts(products) {
         if (currentStep === 1) {
 
             nextBtn.disabled = !(
-                customerSelect
+                paymentMethodSelect
+                && paymentMethodSelect.value
+                && customerSelect
                 && customerSelect.value
                 && contractSelect
                 && contractSelect.value
-                && paymentMethodSelect
-                && paymentMethodSelect.value
             );
+        
 
         } else if (currentStep === 2) {
 
@@ -4210,6 +4211,135 @@ function renderProducts(products) {
         );
     }
 
+    function updateStepOneFields() {
+
+        if (
+            !paymentMethodSelect
+            || !customerSelect
+            || !contractSelect
+        ) {
+            return;
+        }
+
+        const hasPaymentMethod =
+            Boolean(
+                paymentMethodSelect.value
+            );
+
+        customerSelect.disabled =
+            !hasPaymentMethod;
+
+        contractSelect.disabled =
+            !customerSelect.value;
+    }    
+
+    async function loadCustomersByPaymentMethod() {
+
+        if (
+            !paymentMethodSelect
+            || !customerSelect
+            || !contractSelect
+        ) {
+            return;
+        }
+
+        const paymentMethod =
+            paymentMethodSelect.value;
+
+        customerSelect.innerHTML =
+            '<option value="">---------</option>';
+
+        contractSelect.innerHTML =
+            '<option value="">---------</option>';
+
+        if (!paymentMethod) {
+            updateNextStepState();
+            return;
+        }
+
+        try {
+
+            const params =
+                new URLSearchParams();
+
+            params.set(
+                "payment_method",
+                paymentMethod
+            );
+
+            const response = await fetch(
+                `/orders/api/customers/?${params.toString()}`,
+                {
+                    headers: {
+                        "X-Requested-With":
+                            "XMLHttpRequest",
+                    },
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error
+                    || `HTTP ${response.status}`
+                );
+            }
+
+            data.customers.forEach(
+                function (customer) {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value =
+                        customer.id;
+
+                    option.textContent =
+                        customer.name;
+
+                    customerSelect.appendChild(
+                        option
+                    );
+                }
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Ошибка загрузки клиентов:",
+                error
+            );
+        }
+
+        updateNextStepState();
+    }
+
+    if (paymentMethodSelect) {
+
+        paymentMethodSelect.addEventListener(
+            "change",
+            async function () {
+
+                customerSelect.value = "";
+                contractSelect.value = "";
+
+                await loadCustomersByPaymentMethod();
+
+                updateNextStepState();
+            }
+        );
+    }
+
+    if (
+        paymentMethodSelect
+        && paymentMethodSelect.value
+    ) {
+        loadCustomersByPaymentMethod();
+    }
 
     function hasStockShortages() {
 
