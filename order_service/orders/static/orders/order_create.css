@@ -1536,6 +1536,28 @@ body.promo-modal-open {
     font-family: var(--brand-font);
 }
 
+/* Типографика календаря Flatpickr */
+
+.flatpickr-current-month {
+    font-size: 18px;
+    font-weight: 400;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month input.cur-year {
+    font-size: 18px;
+    font-weight: 400;
+}
+
+span.flatpickr-weekday {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.flatpickr-day {
+    font-size: 14px;
+    font-weight: 400;
+}
 @media (max-width: 600px) {
 
     .shipping-info {
