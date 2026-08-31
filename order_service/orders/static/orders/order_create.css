@@ -1521,6 +1521,21 @@ body.promo-modal-open {
     font-family: inherit;
 }
 
+/* =========================================================
+   Flatpickr
+   ========================================================= */
+
+.flatpickr-calendar,
+.flatpickr-calendar input,
+.flatpickr-months,
+.flatpickr-current-month,
+.flatpickr-weekdays,
+.flatpickr-weekday,
+.flatpickr-days,
+.flatpickr-day {
+    font-family: var(--brand-font);
+}
+
 @media (max-width: 600px) {
 
     .shipping-info {
