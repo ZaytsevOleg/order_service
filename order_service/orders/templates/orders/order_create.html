@@ -947,6 +947,58 @@ document.addEventListener("DOMContentLoaded", function () {
     }    
 
 
+    function updateShippingDateRules() {
+
+        if (
+            !shippingDateInput
+            || !shippingTypeSelect
+            || !currentShippingOptions
+        ) {
+            return;
+        }
+
+        const shippingType =
+            shippingTypeSelect.value;
+
+        let minDate = "";
+
+        if (shippingType === "delivery") {
+            minDate =
+                currentShippingOptions
+                    .delivery_min_date
+                || "";
+        }
+
+        if (shippingType === "pickup") {
+            minDate =
+                currentShippingOptions
+                    .pickup_min_date
+                || "";
+        }
+
+        if (!minDate) {
+            shippingDateInput.removeAttribute(
+                "min"
+            );
+
+            return;
+        }
+
+        shippingDateInput.min = minDate;
+
+        /*
+        * Если пользователь уже выбрал дату,
+        * которая стала недопустимой после
+        * смены способа отгрузки — очищаем её.
+        */
+        if (
+            shippingDateInput.value
+            && shippingDateInput.value < minDate
+        ) {
+            shippingDateInput.value = "";
+        }
+    }
+
     function renderShippingOptions() {
 
         if (!currentShippingOptions) {
@@ -1059,6 +1111,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         updateShippingTypeOptions();
         updateShippingFields();
+        updateShippingDateRules();
         updateNextStepState();
     }    
 
@@ -3413,11 +3466,9 @@ function renderProducts(products) {
     }
 
     function syncShippingTypeFromRadio() {
-
-        const checked =
-            document.querySelector(
-                'input[name="shipping_type_ui"]:checked'
-            );
+        const checked = document.querySelector(
+            'input[name="shipping_type_ui"]:checked'
+        );
 
         if (
             checked
@@ -3428,9 +3479,10 @@ function renderProducts(products) {
         }
 
         updateShippingFields();
+        updateShippingDateRules();
         updateNextStepState();
         updateConfirmation();
-    }    
+    }  
 
     shippingTypeRadios.forEach(
         function (radio) {

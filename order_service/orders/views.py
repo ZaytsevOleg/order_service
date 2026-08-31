@@ -23,13 +23,19 @@ from catalog.models import (
     PromoActionProduct,
     PromoGiftProduct,
 )
-from sales.models import Order
+from sales.models import Order, WorkCalendarException
 import json
 from .forms import OrderCreateForm
 from django.utils import timezone
+from datetime import timedelta
 from django.views.decorators.http import require_POST, require_GET
 
 from orders.services.promo_engine import PromoEngine
+from sales.shipping.shipping_calendar import (
+    get_delivery_min_date,
+    get_pickup_min_date,
+    get_shipping_settings,
+)
 
 
 STATUS_ICONS = {
@@ -2248,6 +2254,34 @@ def shipping_options(
         - order_amount,
     )
 
+    delivery_min_date = get_delivery_min_date()
+    pickup_min_date = get_pickup_min_date()
+
+    shipping_settings = get_shipping_settings()
+
+    today = timezone.localdate()
+
+    booking_max_date = (
+        today
+        + timedelta(
+            days=shipping_settings.booking_horizon_days
+        )
+    )
+
+    calendar_exceptions = {
+        exception.date.isoformat():
+            exception.day_type
+
+        for exception in (
+            WorkCalendarException.objects
+            .filter(
+                date__gte=today,
+                date__lte=booking_max_date,
+            )
+            .order_by("date")
+        )
+    }
+
     return JsonResponse(
         {
             "contract_id":
@@ -2301,6 +2335,26 @@ def shipping_options(
                 str(
                     amount_to_delivery
                 ),
+
+            "delivery_min_date": (
+                delivery_min_date.isoformat()
+            ),
+
+            "pickup_min_date": (
+                pickup_min_date.isoformat()
+            ),
+            
+            "booking_horizon_days": (
+                shipping_settings.booking_horizon_days
+            ),
+
+            "booking_max_date": (
+                booking_max_date.isoformat()
+            ),
+
+            "calendar_exceptions": (
+                calendar_exceptions
+            ),
         }
     )
 
