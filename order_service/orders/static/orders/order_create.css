@@ -1687,8 +1687,16 @@ body.promo-modal-open {
 
 
 .confirm-products-table th {
-    padding: 11px 14px;
-    vertical-align: middle;
+    padding: 9px 14px;
+
+    color: var(--brand-muted);
+    background: var(--brand-surface-soft);
+
+    font-family: var(--brand-font);
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.2;
+    white-space: nowrap;
 }
 
 .confirm-products-table tbody td {
