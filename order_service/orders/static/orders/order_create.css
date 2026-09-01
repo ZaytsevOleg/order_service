@@ -1493,6 +1493,10 @@ body.promo-modal-open {
     min-width: 0;
 }
 
+.form-field.full-width {
+    grid-column: 1 / -1;
+}
+
 /* Адрес доставки не должен расширять колонку */
 #deliveryAddressField {
     grid-column: 1 / -1;
@@ -1578,7 +1582,7 @@ body.promo-modal-open {
 .flatpickr-current-month,
 .flatpickr-current-month .flatpickr-monthDropdown-months,
 .flatpickr-current-month input.cur-year {
-    font-size: 17px;
+    font-size: 14px;
 }
 @media (max-width: 600px) {
 

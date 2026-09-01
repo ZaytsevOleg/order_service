@@ -114,38 +114,6 @@
                             {% endif %}
                         </div>
 
-
-                        <div class="form-field">
-                            <label for="brandDisplay">
-                                Бренд
-                            </label>
-
-                            <input
-                                type="text"
-                                id="brandDisplay"
-                                value=""
-                                readonly
-                                placeholder="Определится по договору"
-                            >
-                        </div>
-
-
-                        <div class="form-field">
-                            <label
-                                for="{{ form.comment.id_for_label }}"
-                            >
-                                Комментарий
-                            </label>
-
-                            {{ form.comment }}
-
-                            {% if form.comment.errors %}
-                                <div class="field-errors">
-                                    {{ form.comment.errors }}
-                                </div>
-                            {% endif %}
-                        </div>
-
                     </div>
                 </section>
 
@@ -269,46 +237,46 @@
 
                     <div class="form-grid">
 
-                    <div class="form-field">
-                        <label>
-                            Способ отгрузки
-                        </label>
-
-                        <div class="shipping-type-options">
-
-                            <label class="shipping-type-option">
-                                <input
-                                    type="radio"
-                                    name="shipping_type_ui"
-                                    value="pickup"
-                                    checked>
-                                <span>
-                                    Самовывоз
-                                </span>
+                        <div class="form-field">
+                            <label>
+                                Способ отгрузки
                             </label>
 
-                            <label class="shipping-type-option">
-                                <input
-                                    type="radio"
-                                    name="shipping_type_ui"
-                                    value="delivery">
-                                <span>
-                                    Доставка
-                                </span>
-                            </label>
+                            <div class="shipping-type-options">
 
-                        </div>
+                                <label class="shipping-type-option">
+                                    <input
+                                        type="radio"
+                                        name="shipping_type_ui"
+                                        value="pickup"
+                                        checked>
+                                    <span>
+                                        Самовывоз
+                                    </span>
+                                </label>
 
-                        <div hidden>
-                            {{ form.shipping_type }}
-                        </div>
+                                <label class="shipping-type-option">
+                                    <input
+                                        type="radio"
+                                        name="shipping_type_ui"
+                                        value="delivery">
+                                    <span>
+                                        Доставка
+                                    </span>
+                                </label>
 
-                        {% if form.shipping_type.errors %}
-                            <div class="field-errors">
-                                {{ form.shipping_type.errors }}
                             </div>
-                        {% endif %}
-                    </div>
+
+                            <div hidden>
+                                {{ form.shipping_type }}
+                            </div>
+
+                            {% if form.shipping_type.errors %}
+                                <div class="field-errors">
+                                    {{ form.shipping_type.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
 
 
                         <div
@@ -343,6 +311,22 @@
                                 </div>
                             {% endif %}
                         </div>
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.comment.id_for_label }}"
+                            >
+                                Комментарий
+                            </label>
+
+                            {{ form.comment }}
+
+                            {% if form.comment.errors %}
+                                <div class="field-errors">
+                                    {{ form.comment.errors }}
+                                </div>
+                            {% endif %}
+                        </div>                        
 
                     </div>
                 </section>
@@ -633,9 +617,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let currentShippingOptions = null;
 
-    const brandDisplay = document.getElementById(
-        "brandDisplay"
-    );
+    let selectedBrandName = "";
 
     const productCards =
         document.getElementById(
@@ -842,9 +824,7 @@ document.addEventListener("DOMContentLoaded", function () {
         addressSelect.innerHTML =
             '<option value="">---------</option>';
 
-        if (brandDisplay) {
-            brandDisplay.value = "";
-        }
+        selectedBrandName = "";
 
         if (!customerId) {
             updateNextStepState();
@@ -4636,12 +4616,7 @@ function renderProducts(products) {
 
         if (confirmBrand) {
             confirmBrand.textContent =
-                brandDisplay
-                ? (
-                    brandDisplay.value
-                    || "—"
-                )
-                : "—";
+                selectedBrandName || "—";
         }
 
 
@@ -4824,15 +4799,11 @@ function renderProducts(products) {
                 contractSelect.selectedIndex
             ];
 
-        if (!brandDisplay) {
-            return;
-        }
-
-        brandDisplay.value =
+        selectedBrandName =
             option
             && option.dataset.brandName
                 ? option.dataset.brandName
-                : "";        
+                : "";     
                 
     }
 
