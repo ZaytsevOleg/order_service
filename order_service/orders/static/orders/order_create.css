@@ -1584,6 +1584,236 @@ body.promo-modal-open {
 .flatpickr-current-month input.cur-year {
     font-size: 14px;
 }
+
+
+/* =========================================================
+   ШАГ 5. Подтверждение заказа
+   ========================================================= */
+
+.confirm-header {
+    margin-bottom: 24px;
+}
+
+.confirm-header h2 {
+    margin-bottom: 6px;
+}
+
+.confirm-header p {
+    margin: 0;
+    color: var(--brand-muted);
+    font-size: 14px;
+}
+
+
+/* Основные данные заказа */
+
+.confirm-order-info {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 30px;
+}
+
+.confirm-info-item {
+    min-width: 0;
+    padding: 16px 18px;
+    background: var(--brand-surface-soft);
+    border-radius: 14px;
+}
+
+.confirm-info-item span {
+    display: block;
+    margin-bottom: 7px;
+
+    color: var(--brand-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.confirm-info-item strong {
+    display: block;
+
+    color: var(--brand-text);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+
+    overflow-wrap: anywhere;
+}
+
+.confirm-info-comment {
+    grid-column: 1 / -1;
+}
+
+
+/* Таблица товаров */
+
+.confirm-products {
+    margin-top: 4px;
+}
+
+.confirm-products h3 {
+    margin: 0 0 14px;
+
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.confirm-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+
+    border: 1px solid var(--brand-border);
+    border-radius: 14px;
+}
+
+.confirm-products-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+.confirm-products-table th,
+.confirm-products-table td {
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--brand-border);
+
+    vertical-align: middle;
+}
+
+.confirm-products-table th {
+    color: var(--brand-muted);
+    background: var(--brand-surface-soft);
+
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.confirm-products-table td {
+    color: var(--brand-text);
+    font-size: 14px;
+}
+
+.confirm-products-table tbody tr:last-child td {
+    border-bottom: 1px solid var(--brand-border);
+}
+
+.confirm-products-table tfoot td {
+    border-bottom: none;
+    background: var(--brand-surface-soft);
+
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.confirm-total-amount {
+    color: var(--brand-primary) !important;
+    font-size: 16px !important;
+    white-space: nowrap;
+}
+
+.confirm-products-table .text-end {
+    text-align: right;
+}
+
+.confirm-products-table .text-center {
+    text-align: center;
+    
+}
+
+/* =========================================================
+   ШАГ 5. Режим подтверждения
+   ========================================================= */
+
+.order-create-layout.confirmation-mode {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.order-create-layout.confirmation-mode
+.order-create-main {
+    width: 100%;
+    max-width: none;
+}
+
+/* =========================================================
+   Таблица товаров подтверждения
+   ========================================================= */
+
+.confirm-products-table tbody tr {
+    transition: background 0.15s ease;
+}
+
+.confirm-products-table tbody tr:hover {
+    background: var(--brand-surface-soft);
+}
+
+.confirm-product-article {
+    color: var(--brand-muted);
+    white-space: nowrap;
+}
+
+.confirm-product-name {
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.confirm-product-promo-name {
+    margin-top: 4px;
+    color: var(--brand-primary);
+    font-size: 12px;
+    line-height: 1.3;
+}
+
+.confirm-base-price {
+    margin-bottom: 2px;
+    color: var(--brand-muted);
+    font-size: 12px;
+    text-decoration: line-through;
+}
+
+.confirm-discount {
+    color: var(--brand-primary);
+    font-weight: 600;
+}
+
+.confirm-gift-label {
+    color: var(--brand-primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.confirm-product-gift {
+    background: var(--brand-surface-soft);
+}
+
+.confirm-row-amount {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.confirm-products-empty {
+    padding: 32px !important;
+    color: var(--brand-muted) !important;
+    text-align: center;
+}
+
+
+@media (max-width: 900px) {
+    .confirm-order-info {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .confirm-order-info {
+        grid-template-columns: 1fr;
+    }
+
+    .confirm-info-comment {
+        grid-column: auto;
+    }
+}
 @media (max-width: 600px) {
 
     .shipping-info {

@@ -339,74 +339,118 @@
                 <section
                     class="order-step"
                     data-step="5">
-                    <h2>Подтверждение</h2>
+                    <div class="confirm-header">
+                        <h2>Подтверждение заказа</h2>
+                        <p>
+                            Проверьте данные заказа перед оформлением.
+                        </p>
+                    </div>
 
-                    <div class="confirm-card">
+                    <div class="confirm-card confirm-order-info">
 
-                        <div>
+                        <div class="confirm-info-item">
                             <span>Юр. лицо</span>
-                            <strong id="confirmClient">
-                                —
-                            </strong>
+                            <strong id="confirmClient">—</strong>
                         </div>
 
-
-                        <div>
+                        <div class="confirm-info-item">
                             <span>Договор</span>
-                            <strong id="confirmContract">
-                                —
-                            </strong>
+                            <strong id="confirmContract">—</strong>
                         </div>
 
-
-                        <div>
-                            <span>Бренд</span>
-                            <strong id="confirmBrand">
-                                —
-                            </strong>
+                        <div class="confirm-info-item">
+                            <span>Форма оплаты</span>
+                            <strong id="confirmPaymentMethod">—</strong>
                         </div>
 
-
-                        <div>
-                            <span>Сумма заказа</span>
-                            <strong id="confirmAmount">
-                                0,00 руб
-                            </strong>
+                        <div class="confirm-info-item">
+                            <span>Способ отгрузки</span>
+                            <strong id="confirmShipping">—</strong>
                         </div>
 
-
-                        <div>
-                            <span>Позиций</span>
-                            <strong id="confirmItemsCount">
-                                0
-                            </strong>
-                        </div>
-
-
-                        <div>
-                            <span>Отгрузка</span>
-                            <strong id="confirmShipping">
-                                —
-                            </strong>
-                        </div>
-
-
-                        <div>
+                        <div class="confirm-info-item">
                             <span>Дата отгрузки</span>
-                            <strong id="confirmShippingDate">
-                                —
-                            </strong>
+                            <strong id="confirmShippingDate">—</strong>
                         </div>
 
+                        <div
+                            class="confirm-info-item"
+                            id="confirmAddressBlock">
+                            <span>Адрес доставки</span>
+                            <strong id="confirmAddress">—</strong>
+                        </div>
 
-                        <div>
-                            <span>Адрес</span>
-                            <strong id="confirmAddress">
-                                —
-                            </strong>
+                        <div
+                            class="confirm-info-item
+                                confirm-info-comment">
+                            <span>Комментарий</span>
+                            <strong id="confirmComment">—</strong>
                         </div>
 
                     </div>
+
+
+                    <div class="confirm-products">
+
+                        <h3>Товары в заказе</h3>
+
+                        <div class="confirm-table-wrapper">
+
+                            <table class="confirm-products-table">
+
+                                <thead>
+                                    <tr>
+                                        <th>Артикул</th>
+                                        <th>Товар</th>
+                                        <th class="text-end">
+                                            Цена
+                                        </th>
+                                        <th class="text-center">
+                                            Кол-во
+                                        </th>
+                                        <th class="text-end">
+                                            Скидка
+                                        </th>
+                                        <th class="text-end">
+                                            Сумма
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody id="confirmProductsBody">
+                                </tbody>
+
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="3">
+                                            <strong>Итого</strong>
+                                        </td>
+
+                                        <td
+                                            id="confirmTotalQuantity"
+                                            class="text-center">
+                                            0
+                                        </td>
+
+                                        <td></td>
+
+                                        <td
+                                            id="confirmAmount"
+                                            class="
+                                                text-end
+                                                confirm-total-amount
+                                            ">
+                                            0,00 руб
+                                        </td>
+                                    </tr>
+                                </tfoot>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
                 </section>
 
 
@@ -696,6 +740,16 @@ document.addEventListener("DOMContentLoaded", function () {
             ".order-create-actions"
         );    
 
+    const orderCreateLayout =
+        document.querySelector(
+            ".order-create-layout"
+        );
+
+    const orderCartSummary =
+        document.querySelector(
+            ".order-cart-summary"
+        );
+
     const deliveryAddressField =
         document.getElementById(
             "deliveryAddressField"
@@ -705,6 +759,17 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById(
             "deliveryAddressHint"
         );
+
+    const confirmProductsBody =
+        document.getElementById(
+            "confirmProductsBody"
+        );
+
+    const confirmTotalQuantity =
+        document.getElementById(
+            "confirmTotalQuantity"
+        );
+
 
     function isShippingDateAllowed(date) {
 
@@ -4565,6 +4630,217 @@ function renderProducts(products) {
         ).format(number) + " руб";
     }
 
+    function renderConfirmationProducts() {
+
+        if (!confirmProductsBody) {
+            return;
+        }
+
+        confirmProductsBody.innerHTML = "";
+
+        let totalQuantity = 0;
+        let totalAmount = 0;
+
+        if (cart.size === 0) {
+
+            confirmProductsBody.innerHTML = `
+                <tr>
+                    <td
+                        colspan="6"
+                        class="confirm-products-empty"
+                    >
+                        В заказе нет товаров
+                    </td>
+                </tr>
+            `;
+
+            if (confirmTotalQuantity) {
+                confirmTotalQuantity.textContent = "0";
+            }
+
+            if (confirmAmount) {
+                confirmAmount.textContent =
+                    formatMoney(0);
+            }
+
+            return;
+        }
+
+
+        cart.forEach(function (item) {
+
+            const quantity =
+                Number(item.quantity) || 0;
+
+            const price =
+                Number(item.price) || 0;
+
+            const basePrice =
+                Number(item.base_price) || price;
+
+            const discountPercent =
+                Number(item.discount_percent) || 0;
+
+            const isGift =
+                item.is_promo_gift === true;
+
+            const isPromoProduct =
+                item.is_promo_product === true;
+
+            const rowAmount =
+                isGift
+                    ? 0
+                    : price * quantity;
+
+
+            totalQuantity += quantity;
+            totalAmount += rowAmount;
+
+
+            const row =
+                document.createElement("tr");
+
+
+            if (isGift) {
+                row.classList.add(
+                    "confirm-product-gift"
+                );
+            } else if (isPromoProduct) {
+                row.classList.add(
+                    "confirm-product-promo"
+                );
+            }
+
+
+            let productCaption = "";
+
+            if (
+                (isGift || isPromoProduct)
+                && item.promo_id
+            ) {
+
+                const promotion =
+                    appliedPromotions.get(
+                        String(item.promo_id)
+                    )
+                    || appliedPromotions.get(
+                        item.promo_id
+                    );
+
+                if (promotion) {
+
+                    productCaption = `
+                        <div class="confirm-product-promo-name">
+                            ${escapeHtml(
+                                promotion.promo_name || ""
+                            )}
+                        </div>
+                    `;
+                }
+            }
+
+
+            let priceHtml;
+
+            if (isGift) {
+
+                priceHtml = `
+                    <span class="confirm-gift-label">
+                        Подарок
+                    </span>
+                `;
+
+            } else if (
+                discountPercent > 0
+                && basePrice > price
+            ) {
+
+                priceHtml = `
+                    <div class="confirm-base-price">
+                        ${formatMoney(basePrice)}
+                    </div>
+
+                    <strong>
+                        ${formatMoney(price)}
+                    </strong>
+                `;
+
+            } else {
+
+                priceHtml = `
+                    ${formatMoney(price)}
+                `;
+            }
+
+
+            let discountHtml = "—";
+
+            if (isGift) {
+                discountHtml = "—";
+
+            } else if (discountPercent > 0) {
+
+                discountHtml = `
+                    <span class="confirm-discount">
+                        ${discountPercent}%
+                    </span>
+                `;
+            }
+
+
+            row.innerHTML = `
+                <td class="confirm-product-article">
+                    ${escapeHtml(
+                        item.article || "—"
+                    )}
+                </td>
+
+                <td>
+                    <div class="confirm-product-name">
+                        ${escapeHtml(
+                            item.name || ""
+                        )}
+                    </div>
+
+                    ${productCaption}
+                </td>
+
+                <td class="text-end">
+                    ${priceHtml}
+                </td>
+
+                <td class="text-center">
+                    ${quantity}
+                </td>
+
+                <td class="text-end">
+                    ${discountHtml}
+                </td>
+
+                <td class="text-end confirm-row-amount">
+                    ${
+                        isGift
+                            ? "0,00 руб"
+                            : formatMoney(rowAmount)
+                    }
+                </td>
+            `;
+
+            confirmProductsBody.appendChild(row);
+        });
+
+
+        if (confirmTotalQuantity) {
+            confirmTotalQuantity.textContent =
+                totalQuantity;
+        }
+
+        if (confirmAmount) {
+            confirmAmount.textContent =
+                formatMoney(totalAmount);
+        }
+    }
+    
     function updateConfirmation() {
 
         const confirmClient =
@@ -4577,10 +4853,20 @@ function renderProducts(products) {
                 "confirmContract"
             );
 
-        const confirmBrand =
+        const confirmPaymentMethod =
             document.getElementById(
-                "confirmBrand"
+                "confirmPaymentMethod"
             );
+
+        const confirmComment =
+            document.getElementById(
+                "confirmComment"
+            );
+
+        const confirmAddressBlock =
+            document.getElementById(
+                "confirmAddressBlock"
+            );            
 
         const confirmShipping =
             document.getElementById(
@@ -4613,12 +4899,12 @@ function renderProducts(products) {
                 );
         }
 
-
-        if (confirmBrand) {
-            confirmBrand.textContent =
-                selectedBrandName || "—";
+        if (confirmPaymentMethod) {
+            confirmPaymentMethod.textContent =
+                getSelectedText(
+                    paymentMethodSelect
+                );
         }
-
 
         if (confirmShipping) {
             confirmShipping.textContent =
@@ -4630,11 +4916,20 @@ function renderProducts(products) {
 
         if (confirmShippingDate) {
 
-            confirmShippingDate.textContent =
+            if (
                 shippingDateInput
                 && shippingDateInput.value
-                    ? shippingDateInput.value
-                    : "—";
+            ) {
+                const parts =
+                    shippingDateInput.value.split("-");
+
+                confirmShippingDate.textContent =
+                    parts.length === 3
+                        ? `${parts[2]}.${parts[1]}.${parts[0]}`
+                        : shippingDateInput.value;
+            } else {
+                confirmShippingDate.textContent = "—";
+            }
         }
 
 
@@ -4644,6 +4939,33 @@ function renderProducts(products) {
                     addressSelect
                 );
         }
+
+        const isDelivery =
+            shippingTypeSelect
+            && shippingTypeSelect.value === "delivery";
+
+        if (confirmAddressBlock) {
+            confirmAddressBlock.hidden =
+                !isDelivery;
+        }
+
+        if (confirmAddress) {
+            confirmAddress.textContent =
+                isDelivery
+                    ? getSelectedText(addressSelect)
+                    : "—";
+        }
+
+        if (confirmComment) {
+            confirmComment.textContent =
+                commentInput
+                && commentInput.value.trim()
+                    ? commentInput.value.trim()
+                    : "—";
+        }
+        
+        renderConfirmationProducts();
+
     }
 
 
@@ -5123,6 +5445,33 @@ function renderProducts(products) {
                 );
 
             }
+        );
+
+        const isConfirmationStep =
+            step === 5;
+
+        if (orderCartSummary) {
+            orderCartSummary.hidden =
+                isConfirmationStep;
+        }
+
+        if (orderCreateLayout) {
+            orderCreateLayout.classList.toggle(
+                "confirmation-mode",
+                isConfirmationStep
+            );
+        }
+
+        if (orderCartSummary) {
+            orderCartSummary.style.display =
+                step === 5
+                    ? "none"
+                    : "";
+        }
+
+        document.body.classList.toggle(
+            "order-confirmation-step",
+            step === 5
         );
 
 
