@@ -4807,6 +4807,18 @@ function renderProducts(products) {
                         )}
                     </div>
 
+                    ${
+                        item.name_translation
+                            ? `
+                                <div class="confirm-product-translation">
+                                    ${escapeHtml(
+                                        item.name_translation
+                                    )}
+                                </div>
+                            `
+                            : ""
+                    }
+
                     ${productCaption}
                 </td>
 
