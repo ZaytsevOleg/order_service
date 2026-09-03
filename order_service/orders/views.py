@@ -2428,7 +2428,7 @@ def available_customers(request):
                         str(customer.pk),
 
                     "name":
-                        customer.name,
+                        customer.display_name,
 
                     "client_type":
                         customer.client_type,

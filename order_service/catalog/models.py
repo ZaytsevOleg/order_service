@@ -1147,6 +1147,30 @@ class Manager(models.Model):
             "Менеджеры"
         )
 
+    @property
+    def display_name(self):
+        full_name = (self.full_name or "").strip()
+
+        if not full_name:
+            return self.name
+
+        if self.client_type == self.CLIENT_TYPE_LLC:
+            prefix = "Общество с ограниченной ответственностью"
+
+            if full_name.lower().startswith(prefix.lower()):
+                short_name = full_name[len(prefix):].strip()
+                return f"ООО {short_name}"
+
+        if self.client_type == self.CLIENT_TYPE_IE:
+            prefix = "Индивидуальный предприниматель"
+
+            if full_name.lower().startswith(prefix.lower()):
+                short_name = full_name[len(prefix):].strip()
+                return f"ИП {short_name}"
+
+        return full_name
+
+
     def __str__(self):
         return self.name
 
