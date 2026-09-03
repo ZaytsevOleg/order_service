@@ -224,6 +224,29 @@ class OrderItem(models.Model):
         verbose_name="Сумма",
     )
 
+    promo_id = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Промоакция",
+    )
+
+    is_promo_product = models.BooleanField(
+        default=False,
+        verbose_name="Товар промоакции",
+    )
+
+    is_promo_gift = models.BooleanField(
+        default=False,
+        verbose_name="Подарок",
+    )
+
+    promo_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Название промоакции",
+    )
+
     class Meta:
         ordering = ("line_number",)
         constraints = [
