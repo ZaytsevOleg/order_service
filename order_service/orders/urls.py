@@ -57,4 +57,9 @@ urlpatterns = [
         views.available_customers,
         name="available_customers",
     ),
+    path(
+        "api/draft/",
+        views.create_order_draft,
+        name="create_order_draft",
+    ),
 ]
