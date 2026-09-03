@@ -160,6 +160,11 @@ class Order(models.Model):
         verbose_name="Идентификатор заказа в 1С",
     )
 
+    current_step = models.PositiveSmallIntegerField(
+        default=1,
+        verbose_name="Текущий шаг оформления",
+    )
+
     class Meta:
         ordering = ("-created_at",)
         verbose_name = "Заказ"
