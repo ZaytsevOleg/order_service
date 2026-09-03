@@ -587,6 +587,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let currentStep = 1;
 
+    let draftOrderId = null;
+
     const steps = document.querySelectorAll(
         ".order-step"
     );
@@ -775,6 +777,86 @@ document.addEventListener("DOMContentLoaded", function () {
             "confirmTotalQuantity"
         );
 
+    async function createDraftOrder() {
+
+        const customerId =
+            customerSelect
+                ? customerSelect.value
+                : "";
+
+        const contractId =
+            contractSelect
+                ? contractSelect.value
+                : "";
+
+        const paymentMethod =
+            paymentMethodSelect
+                ? paymentMethodSelect.value
+                : "";
+
+
+        if (
+            !customerId
+            || !contractId
+            || !paymentMethod
+        ) {
+            throw new Error(
+                "Не заполнены данные первого шага."
+            );
+        }
+
+
+        const response = await fetch(
+            "/orders/api/draft/",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json",
+
+                    "X-CSRFToken":
+                        getCsrfToken(),
+
+                    "X-Requested-With":
+                        "XMLHttpRequest",
+                },
+
+                body: JSON.stringify(
+                    {
+                        customer_id:
+                            customerId,
+
+                        contract_id:
+                            contractId,
+
+                        payment_method:
+                            paymentMethod,
+                    }
+                ),
+            }
+        );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error
+                || `HTTP ${response.status}`
+            );
+        }
+
+
+        draftOrderId =
+            data.order_id;
+
+
+        return data;
+    }
 
     function isShippingDateAllowed(date) {
 
@@ -5159,18 +5241,51 @@ function renderProducts(products) {
         "click",
         async function () {
 
-            if (currentStep < 5) {
-
-                currentStep += 1;
-
-                if (currentStep === 4) {
-                    await loadShippingOptions();
-                }
-
-                showStep(
-                    currentStep
-                );
+            if (currentStep >= 5) {
+                return;
             }
+
+
+            /*
+            * При первом переходе
+            * с шага 1 на шаг 2
+            * создаём черновик в БД.
+            */
+            if (
+                currentStep === 1
+                && !draftOrderId
+            ) {
+
+                nextBtn.disabled = true;
+
+                try {
+
+                    await createDraftOrder();
+
+                } catch (error) {
+
+                    console.error(
+                        "Ошибка создания черновика:",
+                        error
+                    );
+
+                    alert(
+                        error.message
+                        || "Не удалось создать черновик заказа."
+                    );
+
+                    updateNextStepState();
+
+                    return;
+                }
+            }
+
+
+            currentStep += 1;
+
+            showStep(
+                currentStep
+            );
         }
     );
 

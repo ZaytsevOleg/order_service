@@ -2440,3 +2440,183 @@ def available_customers(request):
             ],
         }
     )
+
+@login_required
+@require_POST
+def create_order_draft(request):
+
+    try:
+        payload = json.loads(
+            request.body.decode("utf-8")
+        )
+
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+    ):
+        return JsonResponse(
+            {
+                "error": "Некорректный JSON.",
+            },
+            status=400,
+        )
+
+
+    customer_id = str(
+        payload.get(
+            "customer_id",
+            "",
+        )
+    ).strip()
+
+    contract_id = str(
+        payload.get(
+            "contract_id",
+            "",
+        )
+    ).strip()
+
+    payment_method = str(
+        payload.get(
+            "payment_method",
+            "",
+        )
+    ).strip()
+
+
+    if not customer_id:
+        return JsonResponse(
+            {
+                "error": "Не указан клиент.",
+            },
+            status=400,
+        )
+
+    if not contract_id:
+        return JsonResponse(
+            {
+                "error": "Не указан договор.",
+            },
+            status=400,
+        )
+
+    if payment_method not in {
+        Order.PAYMENT_CASH,
+        Order.PAYMENT_CASHLESS,
+    }:
+        return JsonResponse(
+            {
+                "error": "Некорректная форма оплаты.",
+            },
+            status=400,
+        )
+
+
+    access = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            legal_entity_id=customer_id,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+        .select_related(
+            "price_type",
+            "legal_entity",
+        )
+        .first()
+    )
+
+
+    if access is None:
+        return JsonResponse(
+            {
+                "error": "Клиент недоступен.",
+            },
+            status=403,
+        )
+
+
+    if access.price_type_id is None:
+        return JsonResponse(
+            {
+                "error": (
+                    "Для клиента не назначен "
+                    "тип цен."
+                ),
+            },
+            status=400,
+        )
+
+
+    customer = access.legal_entity
+
+
+    if (
+        customer.allowed_payment_method
+        != payment_method
+    ):
+        return JsonResponse(
+            {
+                "error": (
+                    "Выбранная форма оплаты "
+                    "недоступна для этого клиента."
+                ),
+            },
+            status=400,
+        )
+
+
+    contract = (
+        Contract.objects
+        .filter(
+            pk=contract_id,
+            legal_entity_id=customer_id,
+            brand=request.brand.brand_id,
+            is_active=True,
+        )
+        .first()
+    )
+
+
+    if contract is None:
+        return JsonResponse(
+            {
+                "error": (
+                    "Договор не найден "
+                    "или недоступен."
+                ),
+            },
+            status=404,
+        )
+
+
+    draft = Order.objects.create(
+        user=request.user,
+        customer=customer,
+        contract=contract,
+        price_type=access.price_type,
+        payment_method=payment_method,
+        shipping_type=Order.SHIPPING_PICKUP,
+        status=Order.STATUS_DRAFT,
+        discount_percent=(
+            access.discount_percent
+            or Decimal("0.00")
+        ),
+        amount=Decimal("0.00"),
+        current_step=2,
+    )
+
+
+    return JsonResponse(
+        {
+            "order_id": str(
+                draft.pk
+            ),
+            "status": draft.status,
+            "current_step": (
+                draft.current_step
+            ),
+        },
+        status=201,
+    )
