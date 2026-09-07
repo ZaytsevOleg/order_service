@@ -197,6 +197,13 @@ class OrderItem(models.Model):
         max_length=500,
         verbose_name="Название товара",
     )
+    
+    product_name_translation = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        verbose_name="Перевод названия товара",
+    )
 
     article = models.CharField(
         max_length=255,
