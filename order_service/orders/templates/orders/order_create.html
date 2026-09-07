@@ -4219,6 +4219,31 @@ function renderProducts(products) {
             );
     }    
 
+    function scheduleDraftPromotionsSave() {
+
+        if (!draftOrderId) {
+            return;
+        }
+
+        if (draftPromotionsSaveTimer) {
+            clearTimeout(
+                draftPromotionsSaveTimer
+            );
+        }
+
+        draftPromotionsSaveTimer =
+            setTimeout(
+                function () {
+
+                    draftPromotionsSaveTimer =
+                        null;
+
+                    saveDraftPromotions();
+                },
+                700
+            );
+    }
+
     function renderCartItems() {
 
         if (!cartItems) {
