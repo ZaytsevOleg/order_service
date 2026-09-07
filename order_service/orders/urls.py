@@ -67,4 +67,9 @@ urlpatterns = [
         views.save_draft_items,
         name="save_draft_items",
     ),
+    path(
+        "api/draft/<uuid:order_id>/promotions/",
+        views.save_draft_promotions,
+        name="save_draft_promotions",
+    ),
 ]

@@ -3254,3 +3254,817 @@ def save_draft_items(
                 order.current_step,
         }
     )
+
+@login_required
+@require_POST
+def save_draft_promotions(
+    request,
+    order_id,
+):
+
+    # =========================================================
+    # Черновик
+    # =========================================================
+
+    order = (
+        Order.objects
+        .select_related(
+            "customer",
+            "contract",
+            "price_type",
+        )
+        .filter(
+            pk=order_id,
+            user=request.user,
+            status=Order.STATUS_DRAFT,
+            contract__brand=request.brand.brand_id,
+        )
+        .first()
+    )
+
+    if order is None:
+        return JsonResponse(
+            {
+                "error":
+                    "Черновик заказа не найден "
+                    "или недоступен.",
+            },
+            status=404,
+        )
+
+
+    # =========================================================
+    # JSON
+    # =========================================================
+
+    try:
+        payload = json.loads(
+            request.body.decode("utf-8")
+        )
+
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+    ):
+        return JsonResponse(
+            {
+                "error": "Некорректный JSON.",
+            },
+            status=400,
+        )
+
+
+    raw_promotions = (
+        payload.get("promotions")
+        or []
+    )
+
+    if not isinstance(
+        raw_promotions,
+        list,
+    ):
+        return JsonResponse(
+            {
+                "error":
+                    "Некорректный список промоакций.",
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Доступ клиента
+    # =========================================================
+
+    access = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            legal_entity=order.customer,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+        .select_related(
+            "price_type"
+        )
+        .first()
+    )
+
+    if access is None:
+        return JsonResponse(
+            {
+                "error": "Клиент недоступен.",
+            },
+            status=403,
+        )
+
+    if access.price_type_id is None:
+        return JsonResponse(
+            {
+                "error":
+                    "Для клиента не назначен тип цен.",
+            },
+            status=400,
+        )
+
+
+    contract = order.contract
+
+    if (
+        not contract.is_active
+        or contract.brand
+        != request.brand.brand_id
+    ):
+        return JsonResponse(
+            {
+                "error": "Договор недоступен.",
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Нормализуем список промо
+    # =========================================================
+
+    promotions_to_save = {}
+
+    for item in raw_promotions:
+
+        if not isinstance(
+            item,
+            dict,
+        ):
+            continue
+
+        promo_id = str(
+            item.get(
+                "promo_id",
+                "",
+            )
+        ).strip()
+
+        try:
+            quantity = int(
+                item.get(
+                    "quantity",
+                    0,
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+            quantity = 0
+
+        if (
+            not promo_id
+            or quantity <= 0
+        ):
+            continue
+
+        promotions_to_save[
+            promo_id
+        ] = quantity
+
+
+    # =========================================================
+    # Если все промо удалены
+    # =========================================================
+
+    if not promotions_to_save:
+
+        with transaction.atomic():
+
+            OrderItem.objects.filter(
+                order=order,
+            ).filter(
+                Q(is_promo_product=True)
+                | Q(is_promo_gift=True)
+            ).delete()
+
+
+            order.amount = (
+                OrderItem.objects
+                .filter(
+                    order=order,
+                )
+                .aggregate(
+                    total=Sum("amount")
+                )["total"]
+                or Decimal("0.00")
+            )
+
+            order.current_step = max(
+                order.current_step,
+                3,
+            )
+
+            order.save(
+                update_fields=[
+                    "amount",
+                    "current_step",
+                    "updated_at",
+                ]
+            )
+
+
+        return JsonResponse(
+            {
+                "order_id":
+                    str(order.pk),
+
+                "promotions_count":
+                    0,
+
+                "promo_items_count":
+                    0,
+
+                "amount":
+                    str(order.amount),
+
+                "current_step":
+                    order.current_step,
+            }
+        )
+
+
+    # =========================================================
+    # Курс YE
+    # =========================================================
+
+    today = timezone.localdate()
+
+    currency_rate_row = (
+        CurrencyRate.objects
+        .filter(
+            currency_code="YE",
+            valid_from__lte=today,
+        )
+        .order_by(
+            "-valid_from",
+            "-id",
+        )
+        .first()
+    )
+
+    if currency_rate_row is None:
+        return JsonResponse(
+            {
+                "error":
+                    "Не найден действующий курс валюты YE.",
+            },
+            status=500,
+        )
+
+    currency_rate = Decimal(
+        str(
+            currency_rate_row.rate
+        )
+    )
+
+    customer_discount = Decimal(
+        str(
+            access.discount_percent
+            or "0.00"
+        )
+    )
+
+
+    # =========================================================
+    # Получаем действующие промо
+    # =========================================================
+
+    now = timezone.now()
+
+    promotions = (
+        PromoAction.objects
+        .filter(
+            pk__in=list(
+                promotions_to_save.keys()
+            ),
+            brand_id=contract.brand,
+            is_active=True,
+        )
+        .filter(
+            Q(valid_from__isnull=True)
+            | Q(valid_from__lte=now)
+        )
+        .filter(
+            Q(valid_to__isnull=True)
+            | Q(valid_to__gte=now)
+        )
+        .prefetch_related(
+            Prefetch(
+                "condition_products",
+                queryset=(
+                    PromoActionProduct.objects
+                    .select_related(
+                        "product"
+                    )
+                ),
+            ),
+            Prefetch(
+                "gift_products",
+                queryset=(
+                    PromoGiftProduct.objects
+                    .select_related(
+                        "product"
+                    )
+                ),
+            ),
+        )
+    )
+
+
+    promotions_by_id = {
+        str(promo.pk):
+            promo
+        for promo in promotions
+    }
+
+
+    missing_promotions = [
+        promo_id
+        for promo_id
+        in promotions_to_save
+        if promo_id
+        not in promotions_by_id
+    ]
+
+    if missing_promotions:
+        return JsonResponse(
+            {
+                "error":
+                    "Одна из выбранных промоакций "
+                    "больше недоступна.",
+            },
+            status=409,
+        )
+
+
+    # =========================================================
+    # Готовим строки
+    # =========================================================
+
+    prepared_items = []
+
+
+    for (
+        promo_id,
+        promo_quantity,
+    ) in promotions_to_save.items():
+
+        promo = (
+            promotions_by_id[
+                promo_id
+            ]
+        )
+
+
+        # Пока сохраняем только fixed_set.
+        if (
+            promo.condition_type
+            != PromoAction.CONDITION_FIXED_SET
+        ):
+            return JsonResponse(
+                {
+                    "error": (
+                        f'Промо "{promo.name}" '
+                        "пока не поддерживается "
+                        "для сохранения черновика."
+                    ),
+                },
+                status=409,
+            )
+
+
+        condition_rows = list(
+            promo.condition_products.all()
+        )
+
+        if not condition_rows:
+            return JsonResponse(
+                {
+                    "error": (
+                        f'Для промо "{promo.name}" '
+                        "не задан состав товаров."
+                    ),
+                },
+                status=500,
+            )
+
+
+        # -----------------------------------------------------
+        # Цены платных товаров промо
+        # -----------------------------------------------------
+
+        promo_product_ids = [
+            row.product_id
+            for row
+            in condition_rows
+        ]
+
+
+        price_rows = (
+            Price.objects
+            .filter(
+                price_type_id=(
+                    access.price_type_id
+                ),
+                product_id__in=(
+                    promo_product_ids
+                ),
+                product__brand_id=(
+                    contract.brand
+                ),
+                product__is_active=True,
+            )
+            .select_related(
+                "product"
+            )
+        )
+
+
+        prices_by_product = {
+            str(row.product_id):
+                row
+            for row
+            in price_rows
+        }
+
+
+        missing_prices = [
+            row.product.name
+            for row
+            in condition_rows
+            if str(row.product_id)
+            not in prices_by_product
+        ]
+
+
+        if missing_prices:
+            return JsonResponse(
+                {
+                    "error": (
+                        f'Для товаров промо "{promo.name}" '
+                        "не найдены актуальные цены."
+                    ),
+                },
+                status=409,
+            )
+
+
+        # -----------------------------------------------------
+        # Платный состав
+        # -----------------------------------------------------
+
+        for row in condition_rows:
+
+            price_row = (
+                prices_by_product[
+                    str(row.product_id)
+                ]
+            )
+
+            product = (
+                price_row.product
+            )
+
+
+            base_price = (
+                Decimal(
+                    str(
+                        price_row.price
+                    )
+                )
+                * currency_rate
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+
+
+            applied_discount = (
+                customer_discount
+            )
+
+            if (
+                promo.reward_type
+                == PromoAction.REWARD_DISCOUNT
+            ):
+                applied_discount = Decimal(
+                    str(
+                        promo.discount_percent
+                        or "0.00"
+                    )
+                )
+
+
+            final_price = (
+                base_price
+                * (
+                    Decimal("100.00")
+                    - applied_discount
+                )
+                / Decimal("100.00")
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+
+
+            quantity = (
+                Decimal(
+                    str(
+                        row.quantity
+                    )
+                )
+                * Decimal(
+                    str(
+                        promo_quantity
+                    )
+                )
+            )
+
+
+            line_amount = (
+                final_price
+                * quantity
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+
+
+            prepared_items.append(
+                {
+                    "product":
+                        product,
+
+                    "quantity":
+                        quantity,
+
+                    "price":
+                        final_price,
+
+                    "discount_percent":
+                        applied_discount,
+
+                    "amount":
+                        line_amount,
+
+                    "promo_id":
+                        promo_id,
+
+                    "promo_name":
+                        promo.name,
+
+                    "is_promo_product":
+                        True,
+
+                    "is_promo_gift":
+                        False,
+                }
+            )
+
+
+        # -----------------------------------------------------
+        # Подарки
+        # -----------------------------------------------------
+
+        if (
+            promo.reward_type
+            == PromoAction.REWARD_GIFT
+        ):
+
+            for row in (
+                promo.gift_products.all()
+            ):
+
+                product = (
+                    row.product
+                )
+
+                quantity = (
+                    Decimal(
+                        str(
+                            row.quantity
+                        )
+                    )
+                    * Decimal(
+                        str(
+                            promo_quantity
+                        )
+                    )
+                )
+
+
+                prepared_items.append(
+                    {
+                        "product":
+                            product,
+
+                        "quantity":
+                            quantity,
+
+                        "price":
+                            Decimal("0.00"),
+
+                        "discount_percent":
+                            Decimal("0.00"),
+
+                        "amount":
+                            Decimal("0.00"),
+
+                        "promo_id":
+                            promo_id,
+
+                        "promo_name":
+                            promo.name,
+
+                        "is_promo_product":
+                            False,
+
+                        "is_promo_gift":
+                            True,
+                    }
+                )
+
+
+    # =========================================================
+    # Запись
+    # =========================================================
+
+    with transaction.atomic():
+
+        # Полностью заменяем только промо-строки.
+        # Обычные товары шага 2 остаются нетронутыми.
+
+        OrderItem.objects.filter(
+            order=order,
+        ).filter(
+            Q(is_promo_product=True)
+            | Q(is_promo_gift=True)
+        ).delete()
+
+
+        # Продолжаем нумерацию после обычных строк.
+
+        max_regular_line = (
+            OrderItem.objects
+            .filter(
+                order=order,
+                is_promo_product=False,
+                is_promo_gift=False,
+            )
+            .order_by(
+                "-line_number"
+            )
+            .values_list(
+                "line_number",
+                flat=True,
+            )
+            .first()
+            or 0
+        )
+
+
+        order_items = []
+
+        line_number = (
+            max_regular_line
+            + 1
+        )
+
+
+        for item in prepared_items:
+
+            product = (
+                item["product"]
+            )
+
+
+            order_items.append(
+                OrderItem(
+                    order=order,
+
+                    product=product,
+
+                    line_number=(
+                        line_number
+                    ),
+
+                    product_name=(
+                        product.name
+                        or ""
+                    ),
+
+                    product_name_translation=(
+                        product.name_translation
+                        or ""
+                    ),
+
+                    article=(
+                        product.article
+                        or ""
+                    ),
+
+                    quantity=(
+                        item["quantity"]
+                    ),
+
+                    price=(
+                        item["price"]
+                    ),
+
+                    discount_percent=(
+                        item[
+                            "discount_percent"
+                        ]
+                    ),
+
+                    amount=(
+                        item["amount"]
+                    ),
+
+                    promo_id=(
+                        item["promo_id"]
+                    ),
+
+                    promo_name=(
+                        item["promo_name"]
+                    ),
+
+                    is_promo_product=(
+                        item[
+                            "is_promo_product"
+                        ]
+                    ),
+
+                    is_promo_gift=(
+                        item[
+                            "is_promo_gift"
+                        ]
+                    ),
+                )
+            )
+
+            line_number += 1
+
+
+        OrderItem.objects.bulk_create(
+            order_items
+        )
+
+
+        order.amount = (
+            OrderItem.objects
+            .filter(
+                order=order,
+            )
+            .aggregate(
+                total=Sum("amount")
+            )["total"]
+            or Decimal("0.00")
+        )
+
+
+        order.current_step = max(
+            order.current_step,
+            3,
+        )
+
+
+        order.save(
+            update_fields=[
+                "amount",
+                "current_step",
+                "updated_at",
+            ]
+        )
+
+
+    return JsonResponse(
+        {
+            "order_id":
+                str(order.pk),
+
+            "promotions_count":
+                len(
+                    promotions_to_save
+                ),
+
+            "promo_items_count":
+                len(
+                    order_items
+                ),
+
+            "amount":
+                str(order.amount),
+
+            "current_step":
+                order.current_step,
+        }
+    )

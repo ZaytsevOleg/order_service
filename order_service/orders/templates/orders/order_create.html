@@ -729,6 +729,9 @@ document.addEventListener("DOMContentLoaded", function () {
         );
 
     let currentPromotions = [];
+    let draftPromotionsSaveTimer = null;
+    let draftPromotionsSavePending = false;
+    let draftPromotionsSaveRequestedAgain = false;
 
     const confirmAmount =
         document.getElementById(
@@ -905,6 +908,168 @@ document.addEventListener("DOMContentLoaded", function () {
             && weekDay !== 6
         );
     }
+
+    function getDraftPromotions() {
+
+        const promotions = [];
+
+        appliedPromotions.forEach(
+            function (promo) {
+
+                const quantity =
+                    Math.floor(
+                        Number(
+                            promo.quantity
+                        ) || 0
+                    );
+
+                if (quantity <= 0) {
+                    return;
+                }
+
+                promotions.push(
+                    {
+                        promo_id:
+                            String(
+                                promo.promo_id
+                            ),
+
+                        quantity:
+                            quantity,
+                    }
+                );
+            }
+        );
+
+        return promotions;
+    }
+
+    async function saveDraftPromotions() {
+
+        if (draftPromotionsSavePending) {
+
+            draftPromotionsSaveRequestedAgain =
+                true;
+
+            return;
+        }
+
+        if (!draftOrderId) {
+            return;
+        }
+
+
+        draftPromotionsSavePending =
+            true;
+
+
+        try {
+
+            const response = await fetch(
+                `/orders/api/draft/${draftOrderId}/promotions/`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "X-CSRFToken":
+                            getCsrfToken(),
+
+                        "X-Requested-With":
+                            "XMLHttpRequest",
+                    },
+
+                    body: JSON.stringify(
+                        {
+                            promotions:
+                                getDraftPromotions(),
+                        }
+                    ),
+                }
+            );
+
+
+            const responseText =
+                await response.text();
+
+            let data = null;
+
+
+            try {
+
+                data =
+                    JSON.parse(
+                        responseText
+                    );
+
+            } catch (error) {
+
+                console.error(
+                    "Сервер вернул не JSON "
+                    + "при сохранении промо:",
+                    {
+                        status:
+                            response.status,
+
+                        body:
+                            responseText,
+                    }
+                );
+
+                throw new Error(
+                    `Ошибка сервера HTTP ${response.status}`
+                );
+            }
+
+
+            if (!response.ok) {
+
+                console.error(
+                    "Ошибка сохранения промо:",
+                    data
+                );
+
+                throw new Error(
+                    data.error
+                    || `HTTP ${response.status}`
+                );
+            }
+
+
+            console.log(
+                "Промо черновика сохранены:",
+                data
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Не удалось сохранить "
+                + "промо черновика:",
+                error
+            );
+
+
+        } finally {
+
+            draftPromotionsSavePending =
+                false;
+
+
+            if (
+                draftPromotionsSaveRequestedAgain
+            ) {
+
+                draftPromotionsSaveRequestedAgain =
+                    false;
+
+                scheduleDraftPromotionsSave();
+            }
+        }
+    }    
 
     function initShippingDatePicker() {
 
@@ -3170,6 +3335,7 @@ function renderProducts(products) {
                     promoQuantity,
             }
         );
+        scheduleDraftPromotionsSave();
 
         /*
          * Backend возвращает полный состав промо для указанного
