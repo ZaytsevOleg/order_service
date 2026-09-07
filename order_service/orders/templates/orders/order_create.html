@@ -588,6 +588,8 @@ document.addEventListener("DOMContentLoaded", function () {
     let currentStep = 1;
 
     let draftOrderId = null;
+    let draftItemsSaveTimer = null;
+    let draftItemsSavePending = false;
 
     const steps = document.querySelectorAll(
         ".order-step"
@@ -662,6 +664,7 @@ document.addEventListener("DOMContentLoaded", function () {
         );
 
     let currentShippingOptions = null;
+    let draftItemsSaveRequestedAgain = false;
 
     let selectedBrandName = "";
 
@@ -2529,6 +2532,7 @@ function renderProducts(products) {
 
 
         renderCartItems();
+        scheduleDraftItemsSave();
         updateNextStepState();
         
         if (currentStep === 4) {
@@ -3885,6 +3889,173 @@ function renderProducts(products) {
             );
         }
     }
+
+    function getDraftNormalItems() {
+
+        const items = [];
+
+        cart.forEach(
+            function (item) {
+
+                if (
+                    item.is_promo_product
+                    || item.is_promo_gift
+                ) {
+                    return;
+                }
+
+                const quantity =
+                    Number(
+                        item.quantity
+                    ) || 0;
+
+                if (quantity <= 0) {
+                    return;
+                }
+
+                items.push(
+                    {
+                        product_id:
+                            String(
+                                item.product_id
+                            ),
+
+                        quantity:
+                            quantity,
+                    }
+                );
+            }
+        );
+
+        return items;
+    }
+
+    async function saveDraftItems() {
+
+        if (draftItemsSavePending) {
+
+            draftItemsSaveRequestedAgain =
+                true;
+
+            return;
+        }
+
+        if (!draftOrderId) {
+            return;
+        }
+
+        if (draftItemsSavePending) {
+            return;
+        }
+
+
+        draftItemsSavePending = true;
+
+
+        try {
+
+            const response = await fetch(
+                `/orders/api/draft/${draftOrderId}/items/`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "X-CSRFToken":
+                            getCsrfToken(),
+
+                        "X-Requested-With":
+                            "XMLHttpRequest",
+                    },
+
+                    body: JSON.stringify(
+                        {
+                            items:
+                                getDraftNormalItems(),
+                        }
+                    ),
+                }
+            );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                console.error(
+                    "Ошибка сохранения черновика:",
+                    data
+                );
+
+                throw new Error(
+                    data.error
+                    || `HTTP ${response.status}`
+                );
+            }
+
+
+            console.log(
+                "Черновик сохранён:",
+                data
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Не удалось сохранить "
+                + "товары черновика:",
+                error
+            );
+
+        } finally {
+
+            draftItemsSavePending =
+                false;
+
+
+            if (draftItemsSaveRequestedAgain) {
+
+                draftItemsSaveRequestedAgain =
+                    false;
+
+                scheduleDraftItemsSave();
+            }
+        }
+    }
+
+    function scheduleDraftItemsSave() {
+
+        if (!draftOrderId) {
+            return;
+        }
+
+
+        if (draftItemsSaveTimer) {
+
+            clearTimeout(
+                draftItemsSaveTimer
+            );
+        }
+
+
+        draftItemsSaveTimer =
+            setTimeout(
+                function () {
+
+                    draftItemsSaveTimer =
+                        null;
+
+                    saveDraftItems();
+
+                },
+                700
+            );
+    }    
 
     function renderCartItems() {
 

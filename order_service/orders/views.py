@@ -8,6 +8,7 @@ from django.shortcuts import (
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 from django.db.models import Q, Prefetch, Sum
+from django.db import transaction
 from django.http import JsonResponse
 
 from catalog.models import (
@@ -23,7 +24,7 @@ from catalog.models import (
     PromoActionProduct,
     PromoGiftProduct,
 )
-from sales.models import Order, WorkCalendarException
+from sales.models import Order, OrderItem, WorkCalendarException
 import json
 from .forms import OrderCreateForm
 from django.utils import timezone
@@ -2619,4 +2620,637 @@ def create_order_draft(request):
             ),
         },
         status=201,
+    )
+
+@login_required
+@require_POST
+def save_draft_items(
+    request,
+    order_id,
+):
+
+    # =========================================================
+    # Черновик
+    # =========================================================
+
+    order = (
+        Order.objects
+        .select_related(
+            "customer",
+            "contract",
+            "price_type",
+        )
+        .filter(
+            pk=order_id,
+            user=request.user,
+            status=Order.STATUS_DRAFT,
+            contract__brand=request.brand.brand_id,
+        )
+        .first()
+    )
+
+    if order is None:
+        return JsonResponse(
+            {
+                "error":
+                    "Черновик заказа не найден "
+                    "или недоступен.",
+            },
+            status=404,
+        )
+
+
+    # =========================================================
+    # JSON
+    # =========================================================
+
+    try:
+        payload = json.loads(
+            request.body.decode("utf-8")
+        )
+
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+    ):
+        return JsonResponse(
+            {
+                "error":
+                    "Некорректный JSON.",
+            },
+            status=400,
+        )
+
+
+    raw_items = (
+        payload.get("items")
+        or []
+    )
+
+    if not isinstance(
+        raw_items,
+        list,
+    ):
+        return JsonResponse(
+            {
+                "error":
+                    "Некорректный состав корзины.",
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Проверяем доступ к клиенту
+    # =========================================================
+
+    access = (
+        UserLegalEntityAccess.objects
+        .filter(
+            user=request.user,
+            legal_entity=order.customer,
+            is_active=True,
+            legal_entity__is_active=True,
+        )
+        .select_related(
+            "price_type"
+        )
+        .first()
+    )
+
+    if access is None:
+        return JsonResponse(
+            {
+                "error":
+                    "Клиент недоступен.",
+            },
+            status=403,
+        )
+
+    if access.price_type_id is None:
+        return JsonResponse(
+            {
+                "error":
+                    "Для клиента не назначен тип цен.",
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Договор
+    # =========================================================
+
+    contract = order.contract
+
+    if (
+        not contract.is_active
+        or contract.brand
+        != request.brand.brand_id
+    ):
+        return JsonResponse(
+            {
+                "error":
+                    "Договор недоступен.",
+            },
+            status=400,
+        )
+
+    if not contract.organization_id:
+        return JsonResponse(
+            {
+                "error":
+                    "Для договора не указана организация.",
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Нормализуем товары
+    # =========================================================
+
+    quantities = {}
+
+    for item in raw_items:
+
+        if not isinstance(
+            item,
+            dict,
+        ):
+            continue
+
+        product_id = str(
+            item.get(
+                "product_id",
+                "",
+            )
+        ).strip()
+
+        try:
+            quantity = Decimal(
+                str(
+                    item.get(
+                        "quantity",
+                        0,
+                    )
+                )
+            )
+
+        except (
+            InvalidOperation,
+            TypeError,
+            ValueError,
+        ):
+            quantity = Decimal("0")
+
+        if (
+            not product_id
+            or quantity <= 0
+        ):
+            continue
+
+        quantities[
+            product_id
+        ] = (
+            quantities.get(
+                product_id,
+                Decimal("0"),
+            )
+            + quantity
+        )
+
+
+    product_ids = list(
+        quantities.keys()
+    )
+
+
+    # =========================================================
+    # Если корзина очищена
+    # =========================================================
+
+    if not product_ids:
+
+        with transaction.atomic():
+
+            OrderItem.objects.filter(
+                order=order,
+                is_promo_product=False,
+                is_promo_gift=False,
+            ).delete()
+
+            promo_amount = (
+                OrderItem.objects
+                .filter(
+                    order=order,
+                )
+                .aggregate(
+                    total=Sum("amount")
+                )["total"]
+                or Decimal("0.00")
+            )
+
+            order.amount = promo_amount
+            order.current_step = max(
+                order.current_step,
+                2,
+            )
+
+            order.save(
+                update_fields=[
+                    "amount",
+                    "current_step",
+                    "updated_at",
+                ]
+            )
+
+        return JsonResponse(
+            {
+                "order_id": str(order.pk),
+                "items_count": 0,
+                "amount": str(order.amount),
+            }
+        )
+
+
+    # =========================================================
+    # Курс YE
+    # =========================================================
+
+    today = timezone.localdate()
+
+    currency_rate_row = (
+        CurrencyRate.objects
+        .filter(
+            currency_code="YE",
+            valid_from__lte=today,
+        )
+        .order_by(
+            "-valid_from",
+            "-id",
+        )
+        .first()
+    )
+
+    if currency_rate_row is None:
+        return JsonResponse(
+            {
+                "error":
+                    "Не найден действующий курс валюты YE.",
+            },
+            status=500,
+        )
+
+    currency_rate = Decimal(
+        str(
+            currency_rate_row.rate
+        )
+    )
+
+
+    # =========================================================
+    # Цены
+    # =========================================================
+
+    prices = (
+        Price.objects
+        .filter(
+            price_type_id=access.price_type_id,
+            product_id__in=product_ids,
+            product__brand_id=contract.brand,
+            product__is_active=True,
+            product__is_customer_selectable=True,
+        )
+        .select_related(
+            "product"
+        )
+    )
+
+    prices_by_product = {
+        str(row.product_id):
+            row
+        for row in prices
+    }
+
+
+    missing_product_ids = [
+        product_id
+        for product_id
+        in product_ids
+        if product_id
+        not in prices_by_product
+    ]
+
+    if missing_product_ids:
+        return JsonResponse(
+            {
+                "error":
+                    "Для части товаров отсутствует "
+                    "актуальная цена.",
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Остатки по складам организации
+    # =========================================================
+
+    warehouse_ids = list(
+        Warehouse.objects
+        .filter(
+            organization_id=(
+                contract.organization_id
+            ),
+            is_active=True,
+        )
+        .values_list(
+            "warehouse_id",
+            flat=True,
+        )
+    )
+
+    if not warehouse_ids:
+        return JsonResponse(
+            {
+                "error":
+                    "Для организации договора "
+                    "не настроены активные склады.",
+            },
+            status=400,
+        )
+
+
+    stock_rows = (
+        StockBalance.objects
+        .filter(
+            warehouse_id__in=warehouse_ids,
+            product_id__in=product_ids,
+        )
+        .values(
+            "product_id"
+        )
+        .annotate(
+            total_quantity=Sum(
+                "quantity"
+            )
+        )
+    )
+
+    stock_by_product = {
+        str(row["product_id"]):
+            (
+                row["total_quantity"]
+                or Decimal("0")
+            )
+        for row in stock_rows
+    }
+
+
+    shortages = []
+
+    for (
+        product_id,
+        quantity,
+    ) in quantities.items():
+
+        stock_quantity = (
+            stock_by_product.get(
+                product_id,
+                Decimal("0"),
+            )
+        )
+
+        if quantity > stock_quantity:
+
+            product = (
+                prices_by_product[
+                    product_id
+                ].product
+            )
+
+            shortages.append(
+                {
+                    "product_id":
+                        product_id,
+
+                    "name":
+                        product.name,
+
+                    "requested":
+                        str(quantity),
+
+                    "available":
+                        str(stock_quantity),
+                }
+            )
+
+
+    if shortages:
+        return JsonResponse(
+            {
+                "error":
+                    "Недостаточно товара на складе.",
+                "shortages":
+                    shortages,
+            },
+            status=409,
+        )
+
+
+    # =========================================================
+    # Формируем строки
+    # =========================================================
+
+    customer_discount = Decimal(
+        str(
+            access.discount_percent
+            or "0.00"
+        )
+    )
+
+    prepared_items = []
+
+    total_amount = Decimal("0.00")
+
+
+    for (
+        line_number,
+        (
+            product_id,
+            quantity,
+        ),
+    ) in enumerate(
+        quantities.items(),
+        start=1,
+    ):
+
+        price_row = (
+            prices_by_product[
+                product_id
+            ]
+        )
+
+        product = (
+            price_row.product
+        )
+
+
+        base_price = (
+            Decimal(
+                str(
+                    price_row.price
+                )
+            )
+            * currency_rate
+        ).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+
+
+        final_price = (
+            base_price
+            * (
+                Decimal("100.00")
+                - customer_discount
+            )
+            / Decimal("100.00")
+        ).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+
+
+        line_amount = (
+            final_price
+            * quantity
+        ).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+
+
+        total_amount += (
+            line_amount
+        )
+
+
+        prepared_items.append(
+            OrderItem(
+                order=order,
+
+                product=product,
+
+                line_number=(
+                    line_number
+                ),
+
+                product_name=(
+                    product.name
+                    or ""
+                ),
+
+                product_name_translation=(
+                    product.name_translation
+                    or ""
+                ),
+
+                article=(
+                    product.article
+                    or ""
+                ),
+
+                quantity=quantity,
+
+                price=final_price,
+
+                discount_percent=(
+                    customer_discount
+                ),
+
+                amount=line_amount,
+
+                promo_id=None,
+                promo_name="",
+
+                is_promo_product=False,
+                is_promo_gift=False,
+            )
+        )
+
+
+    # =========================================================
+    # Сохраняем атомарно
+    # =========================================================
+
+    with transaction.atomic():
+
+        OrderItem.objects.filter(
+            order=order,
+            is_promo_product=False,
+            is_promo_gift=False,
+        ).delete()
+
+
+        OrderItem.objects.bulk_create(
+            prepared_items
+        )
+
+
+        promo_amount = (
+            OrderItem.objects
+            .filter(
+                order=order,
+            )
+            .aggregate(
+                total=Sum("amount")
+            )["total"]
+            or Decimal("0.00")
+        )
+
+
+        order.amount = (
+            promo_amount
+        )
+
+        order.current_step = max(
+            order.current_step,
+            2,
+        )
+
+        order.price_type = (
+            access.price_type
+        )
+
+        order.discount_percent = (
+            customer_discount
+        )
+
+        order.save(
+            update_fields=[
+                "amount",
+                "current_step",
+                "price_type",
+                "discount_percent",
+                "updated_at",
+            ]
+        )
+
+
+    return JsonResponse(
+        {
+            "order_id":
+                str(order.pk),
+
+            "items_count":
+                len(prepared_items),
+
+            "amount":
+                str(order.amount),
+
+            "current_step":
+                order.current_step,
+        }
     )

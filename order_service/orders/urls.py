@@ -62,4 +62,9 @@ urlpatterns = [
         views.create_order_draft,
         name="create_order_draft",
     ),
+    path(
+        "api/draft/<uuid:order_id>/items/",
+        views.save_draft_items,
+        name="save_draft_items",
+    ),
 ]
