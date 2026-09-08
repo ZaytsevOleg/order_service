@@ -3070,6 +3070,26 @@ def save_draft_items(
         )
     )
 
+    promo_max_line = (
+        OrderItem.objects
+        .filter(
+            order=order,
+        )
+        .filter(
+            Q(is_promo_product=True)
+            | Q(is_promo_gift=True)
+        )
+        .order_by(
+            "-line_number"
+        )
+        .values_list(
+            "line_number",
+            flat=True,
+        )
+        .first()
+        or 0
+    )
+
     prepared_items = []
 
     total_amount = Decimal("0.00")
@@ -3083,7 +3103,9 @@ def save_draft_items(
         ),
     ) in enumerate(
         quantities.items(),
-        start=1,
+        start=(
+            promo_max_line + 1
+        ),
     ):
 
         price_row = (
@@ -4068,3 +4090,27 @@ def save_draft_promotions(
                 order.current_step,
         }
     )
+
+def renumber_order_items(order):
+
+    items = list(
+        OrderItem.objects
+        .filter(order=order)
+        .order_by(
+            "is_promo_product",
+            "is_promo_gift",
+            "line_number",
+            "id",
+        )
+    )
+
+    for index, item in enumerate(
+        items,
+        start=1,
+    ):
+        item.line_number = index
+
+    OrderItem.objects.bulk_update(
+        items,
+        ["line_number"],
+    )    

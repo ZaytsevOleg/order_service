@@ -2635,6 +2635,7 @@ function renderProducts(products) {
         }
 
         updateCartSummary();
+        scheduleDraftItemsSave();
     }
 
     function getCartTotal() {
@@ -2697,7 +2698,6 @@ function renderProducts(products) {
 
 
         renderCartItems();
-        scheduleDraftItemsSave();
         updateNextStepState();
         
         if (currentStep === 4) {
@@ -4450,6 +4450,7 @@ function renderProducts(products) {
                         );
 
                         updateCartSummary();
+                        scheduleDraftItemsSave();
                     }
                 );
 
@@ -4477,6 +4478,7 @@ function renderProducts(products) {
                         }
 
                         updateCartSummary();
+                        scheduleDraftItemsSave();
                     }
                 );
 
@@ -4496,6 +4498,7 @@ function renderProducts(products) {
                         current.quantity += 1;
 
                         updateCartSummary();
+                        scheduleDraftItemsSave();
                     }
                 );
 
@@ -4532,6 +4535,7 @@ function renderProducts(products) {
                         }
 
                         updateCartSummary();
+                        scheduleDraftItemsSave();
                     }
                 );
 
