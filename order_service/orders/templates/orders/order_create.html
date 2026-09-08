@@ -6228,7 +6228,7 @@ function renderProducts(products) {
 
 
                     window.location.href =
-                        `/orders/${data.order_id}/`;
+                        data.redirect_url;
 
 
                 } catch (error) {

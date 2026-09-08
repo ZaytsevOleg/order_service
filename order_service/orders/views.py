@@ -10,7 +10,7 @@ from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from django.db.models import Q, Prefetch, Sum
 from django.db import transaction
 from django.http import JsonResponse
-
+from django.urls import reverse
 from catalog.models import (
     Contract,
     LegalEntity,
@@ -5133,6 +5133,15 @@ def confirm_order_draft(
 
                     "amount":
                         str(order.amount),
+
+                    "redirect_url":
+                        reverse(
+                            "order_detail",
+                            kwargs={
+                                "order_id":
+                                    order.pk,
+                            },
+                        ),
                 }
             )
 
