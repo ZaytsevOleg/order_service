@@ -98,36 +98,54 @@
             <tbody>
                 {% for product in products %}
                 <tr>
-                    <td>{{ product.line_number }}</td>
+                    <td>
+                        {{ product.line_number }}
+                    </td>
 
                     <td>
-                        <div class="product-name">{{ product.product_name }}</div>
+                        <div class="product-name">
+                            {{ product.product_name }}
+                        </div>
+
                         {% if product.product_name_translation %}
                             <div class="product-name-translation">
                                 {{ product.product_name_translation }}
                             </div>
                         {% endif %}
+
                         {% if product.article %}
                             <div class="product-article">
                                 Арт. {{ product.article }}
                             </div>
                         {% endif %}
+
+                        {% if product.is_promo_gift %}
+                            <div class="product-gift-label">
+                                Подарок
+                            </div>
+
+                        {% elif product.is_promo_product and product.promo_name %}
+                            <div class="product-promo-label">
+                                {{ product.promo_name }}
+                            </div>
+                        {% endif %}
                     </td>
 
-                    <td>{{ product.quantity }}</td>
-                    <td class="total-amount">{{ product.price }}</td>
-                    <td>{{ product.discount_percent }}%</td>
-                    <td class="total-amount product-row-total">{{ product.amount }}</td>
-                    
-                    {% if product.is_promo_gift %}
-                        <div class="product-gift-label">
-                            Подарок
-                        </div>
-                    {% elif product.is_promo_product and product.promo_name %}
-                        <div class="product-promo-label">
-                            {{ product.promo_name }}
-                        </div>
-                    {% endif %}
+                    <td>
+                        {{ product.quantity }}
+                    </td>
+
+                    <td class="total-amount">
+                        {{ product.price }}
+                    </td>
+
+                    <td>
+                        {{ product.discount_percent }}%
+                    </td>
+
+                    <td class="total-amount product-row-total">
+                        {{ product.amount }}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
