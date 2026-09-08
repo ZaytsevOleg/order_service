@@ -5135,8 +5135,18 @@ def confirm_order_draft(
             )
 
 
-    except Exception:
+    except Exception as exc:
 
-        # Не проглатываем настоящую ошибку:
-        # Django/Gunicorn должен получить traceback.
-        raise
+        import traceback
+
+        traceback.print_exc()
+
+        return JsonResponse(
+            {
+                "error": str(exc),
+                "exception_type": (
+                    type(exc).__name__
+                ),
+            },
+            status=500,
+        )
