@@ -3512,19 +3512,36 @@ function renderProducts(products) {
                 );
             }
         }
-
         appliedPromotions.delete(
             normalizedPromoId
         );
 
+        /*
+        * ВАЖНО:
+        * сохраняем уже ПОСЛЕ удаления акции
+        * из appliedPromotions.
+        */
+
+        console.log(
+            "PROMO AFTER DELETE:",
+            Array.from(
+                appliedPromotions.values()
+            )
+        );
+
+        scheduleDraftPromotionsSave();
+
         updateCartSummary();
+
         evaluatePromotions().then(
             function () {
+
                 renderPromotions(
                     currentPromotions
                 );
             }
         );
+
     }
 
     async function setPromotionQuantity(
