@@ -4498,7 +4498,9 @@ def confirm_order_draft(
 
             order = (
                 Order.objects
-                .select_for_update()
+                .select_for_update(
+                    of=("self",)
+                )
                 .select_related(
                     "customer",
                     "contract",
