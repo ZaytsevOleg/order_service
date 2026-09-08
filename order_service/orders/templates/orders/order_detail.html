@@ -8,19 +8,31 @@
         <span>/</span>
         <a href="{% url 'order_list' %}">Мои заказы</a>
         <span>/</span>
-        <span>Заказ № {{ order.Number }}</span>
+        <span>
+            {% if order.number %}
+                Заказ № {{ order.number }}
+            {% else %}
+                Заказ
+            {% endif %}
+        </span>
     </div>
 
     <div class="order-title-row">
-        <h1>Заказ № {{ order.Number }}</h1>
+        <h1>
+            {% if order.number %}
+                Заказ № {{ order.number }}
+            {% else %}
+                Заказ
+            {% endif %}
+        </h1>
         <div class="order-status-block order-detail-status">
 
-            <div class="order-status-title">
-                <i class="bi {{ order.status_icon }}"></i>
-                <span>{{ order.status_text }}</span>
-            </div>
+        <div class="order-status-title">
+            <i class="bi {{ status_icon }}"></i>
+            <span>{{ order.get_status_display }}</span>
+        </div>
 
-            <div class="order-status-progress status-step-{{ order.status_value }}">
+        <div class="order-status-progress status-step-{{ order.status }}">
                 <span></span>
                 <span></span>
                 <span></span>
@@ -39,7 +51,7 @@
 
         <div class="order-info-item">
             <span>Дата заказа</span>
-            <strong>{{ order.date|slice:":10" }}</strong>
+            <strong>{{ order.created_at|date:"d.m.Y" }}</strong>
         </div>
 
         <div class="order-info-item">
@@ -49,7 +61,7 @@
 
         <div class="order-info-item">
             <span>Тип отгрузки</span>
-            <strong>{{ order.shipping_type }}</strong>
+            <strong>{{ order.get_shipping_type_display }}</strong>
         </div>
 
         <div class="order-info-item order-info-total">
@@ -90,15 +102,32 @@
 
                     <td>
                         <div class="product-name">{{ product.product_name }}</div>
-                        {% if product.product_article %}
-                        <div class="product-article">Арт. {{ product.product_article }}</div>
+                        {% if product.product_name_translation %}
+                            <div class="product-name-translation">
+                                {{ product.product_name_translation }}
+                            </div>
+                        {% endif %}
+                        {% if product.article %}
+                            <div class="product-article">
+                                Арт. {{ product.article }}
+                            </div>
                         {% endif %}
                     </td>
 
                     <td>{{ product.quantity }}</td>
                     <td class="total-amount">{{ product.price }}</td>
-                    <td>{{ product.discount }}%</td>
+                    <td>{{ product.discount_percent }}%</td>
                     <td class="total-amount product-row-total">{{ product.amount }}</td>
+                    
+                    {% if product.is_promo_gift %}
+                        <div class="product-gift-label">
+                            Подарок
+                        </div>
+                    {% elif product.is_promo_product and product.promo_name %}
+                        <div class="product-promo-label">
+                            {{ product.promo_name }}
+                        </div>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
@@ -109,15 +138,20 @@
         {% for product in products %}
         <div class="mobile-product-card">
 
-            {% if product.product_article %}
-            <div class="product-article">
-                Арт. {{ product.product_article }}
-            </div>
+            {% if product.article %}
+                <div class="product-article">
+                    Арт. {{ product.article }}
+                </div>
             {% endif %}
 
             <div class="product-name">
                 {{ product.product_name }}
             </div>
+            {% if product.product_name_translation %}
+                <div class="product-name-translation">
+                    {{ product.product_name_translation }}
+                </div>
+            {% endif %}
 
 
 
@@ -138,7 +172,7 @@
                 <div class="product-details-row">
                     <div class="product-details-item">
                         <span>Скидка</span>
-                        <strong>{{ product.discount }}%</strong>
+                        <strong>{{ product.discount_percent }}%</strong>
                     </div>
 
                     <div class="product-details-item">
