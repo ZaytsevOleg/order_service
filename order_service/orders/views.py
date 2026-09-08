@@ -4480,3 +4480,663 @@ def save_draft_shipping(
                 order.current_step,
         }
     )    
+
+@login_required
+@require_POST
+def confirm_order_draft(
+    request,
+    order_id,
+):
+
+    try:
+
+        with transaction.atomic():
+
+            # =================================================
+            # Блокируем заказ на время подтверждения
+            # =================================================
+
+            order = (
+                Order.objects
+                .select_for_update()
+                .select_related(
+                    "customer",
+                    "contract",
+                    "contract__manager",
+                    "contract__manager__department",
+                    "price_type",
+                    "delivery_address",
+                )
+                .filter(
+                    pk=order_id,
+                    user=request.user,
+                    contract__brand=(
+                        request.brand.brand_id
+                    ),
+                )
+                .first()
+            )
+
+
+            if order is None:
+                return JsonResponse(
+                    {
+                        "error":
+                            "Заказ не найден "
+                            "или недоступен.",
+                    },
+                    status=404,
+                )
+
+
+            # =================================================
+            # Статус
+            # =================================================
+
+            if (
+                order.status
+                != Order.STATUS_DRAFT
+            ):
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Заказ уже оформлен "
+                            "или недоступен для изменения.",
+                    },
+                    status=409,
+                )
+
+
+            # =================================================
+            # Доступ пользователя к клиенту
+            # =================================================
+
+            access = (
+                UserLegalEntityAccess.objects
+                .filter(
+                    user=request.user,
+                    legal_entity=order.customer,
+                    is_active=True,
+                    legal_entity__is_active=True,
+                )
+                .select_related(
+                    "price_type"
+                )
+                .first()
+            )
+
+
+            if access is None:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Клиент больше недоступен.",
+                    },
+                    status=403,
+                )
+
+
+            if access.price_type_id is None:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Для клиента не назначен "
+                            "тип цен.",
+                    },
+                    status=400,
+                )
+
+
+            # =================================================
+            # Форма оплаты
+            # =================================================
+
+            if (
+                order.customer.allowed_payment_method
+                != order.payment_method
+            ):
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Форма оплаты не соответствует "
+                            "типу клиента.",
+                    },
+                    status=400,
+                )
+
+
+            # =================================================
+            # Договор
+            # =================================================
+
+            contract = order.contract
+
+
+            if (
+                not contract.is_active
+                or contract.brand
+                != request.brand.brand_id
+            ):
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Договор больше недоступен.",
+                    },
+                    status=400,
+                )
+
+
+            if not contract.organization_id:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Для договора не указана "
+                            "организация.",
+                    },
+                    status=400,
+                )
+
+
+            # =================================================
+            # Строки заказа
+            # =================================================
+
+            items = list(
+                OrderItem.objects
+                .select_related(
+                    "product"
+                )
+                .filter(
+                    order=order,
+                )
+                .order_by(
+                    "line_number"
+                )
+            )
+
+
+            if not items:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "В заказе нет товаров.",
+                    },
+                    status=400,
+                )
+
+
+            # =================================================
+            # Проверяем строки
+            # =================================================
+
+            for item in items:
+
+                if item.quantity <= 0:
+
+                    return JsonResponse(
+                        {
+                            "error": (
+                                "В заказе обнаружена строка "
+                                "с некорректным количеством."
+                            ),
+                        },
+                        status=400,
+                    )
+
+
+                if (
+                    item.product is None
+                    or not item.product.is_active
+                ):
+
+                    return JsonResponse(
+                        {
+                            "error": (
+                                "Один из товаров заказа "
+                                "больше недоступен."
+                            ),
+                        },
+                        status=400,
+                    )
+
+
+            # =================================================
+            # Остатки
+            #
+            # Подарки тоже являются физическим товаром,
+            # поэтому участвуют в проверке остатка.
+            # =================================================
+
+            warehouse_ids = list(
+                Warehouse.objects
+                .filter(
+                    organization_id=(
+                        contract.organization_id
+                    ),
+                    is_active=True,
+                )
+                .values_list(
+                    "warehouse_id",
+                    flat=True,
+                )
+            )
+
+
+            if not warehouse_ids:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Для организации договора "
+                            "не настроены активные склады.",
+                    },
+                    status=400,
+                )
+
+
+            quantities_by_product = {}
+
+
+            for item in items:
+
+                product_id = str(
+                    item.product_id
+                )
+
+                quantities_by_product[
+                    product_id
+                ] = (
+                    quantities_by_product.get(
+                        product_id,
+                        Decimal("0"),
+                    )
+                    + item.quantity
+                )
+
+
+            stock_rows = (
+                StockBalance.objects
+                .filter(
+                    warehouse_id__in=(
+                        warehouse_ids
+                    ),
+                    product_id__in=(
+                        quantities_by_product.keys()
+                    ),
+                )
+                .values(
+                    "product_id"
+                )
+                .annotate(
+                    total_quantity=Sum(
+                        "quantity"
+                    )
+                )
+            )
+
+
+            stock_by_product = {
+                str(row["product_id"]):
+                    (
+                        row["total_quantity"]
+                        or Decimal("0")
+                    )
+                for row
+                in stock_rows
+            }
+
+
+            shortages = []
+
+
+            for (
+                product_id,
+                quantity,
+            ) in quantities_by_product.items():
+
+                available = (
+                    stock_by_product.get(
+                        product_id,
+                        Decimal("0"),
+                    )
+                )
+
+
+                if quantity > available:
+
+                    product_name = next(
+                        (
+                            item.product_name
+                            for item
+                            in items
+                            if str(
+                                item.product_id
+                            ) == product_id
+                        ),
+                        product_id,
+                    )
+
+
+                    shortages.append(
+                        {
+                            "product_id":
+                                product_id,
+
+                            "name":
+                                product_name,
+
+                            "requested":
+                                str(quantity),
+
+                            "available":
+                                str(available),
+                        }
+                    )
+
+
+            if shortages:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Недостаточно товара "
+                            "на складе.",
+
+                        "shortages":
+                            shortages,
+                    },
+                    status=409,
+                )
+
+
+            # =================================================
+            # Пересчитываем сумму именно из OrderItem
+            # =================================================
+
+            order_amount = sum(
+                (
+                    item.amount
+                    for item
+                    in items
+                ),
+                Decimal("0.00"),
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+
+
+            if order_amount <= 0:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Сумма заказа должна быть "
+                            "больше нуля.",
+                    },
+                    status=400,
+                )
+
+
+            # =================================================
+            # Способ отгрузки
+            # =================================================
+
+            if order.shipping_type not in {
+                Order.SHIPPING_PICKUP,
+                Order.SHIPPING_DELIVERY,
+            }:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Не указан способ отгрузки.",
+                    },
+                    status=400,
+                )
+
+
+            if order.shipping_date is None:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Не указана дата отгрузки.",
+                    },
+                    status=400,
+                )
+
+
+            # =================================================
+            # Минимальная дата
+            # =================================================
+
+            if (
+                order.shipping_type
+                == Order.SHIPPING_PICKUP
+            ):
+
+                min_shipping_date = (
+                    get_pickup_min_date()
+                )
+
+            else:
+
+                min_shipping_date = (
+                    get_delivery_min_date()
+                )
+
+
+            if (
+                order.shipping_date
+                < min_shipping_date
+            ):
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Дата отгрузки больше "
+                            "не доступна.",
+
+                        "min_date":
+                            min_shipping_date.isoformat(),
+                    },
+                    status=400,
+                )
+
+
+            if not is_working_day(
+                order.shipping_date
+            ):
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Выбранная дата отгрузки "
+                            "является нерабочей.",
+                    },
+                    status=400,
+                )
+
+
+            # =================================================
+            # Доставка
+            # =================================================
+
+            if (
+                order.shipping_type
+                == Order.SHIPPING_DELIVERY
+            ):
+
+                if (
+                    order.delivery_address_id
+                    is None
+                ):
+
+                    return JsonResponse(
+                        {
+                            "error":
+                                "Не указан адрес доставки.",
+                        },
+                        status=400,
+                    )
+
+
+                address_valid = (
+                    LegalEntityDeliveryAddress.objects
+                    .filter(
+                        pk=(
+                            order.delivery_address_id
+                        ),
+                        legal_entity=order.customer,
+                        is_active=True,
+                    )
+                    .exists()
+                )
+
+
+                if not address_valid:
+
+                    return JsonResponse(
+                        {
+                            "error":
+                                "Адрес доставки "
+                                "больше недоступен.",
+                        },
+                        status=400,
+                    )
+
+
+                manager = (
+                    contract.manager
+                )
+
+
+                if manager is None:
+
+                    return JsonResponse(
+                        {
+                            "error":
+                                "Для договора "
+                                "не указан менеджер.",
+                        },
+                        status=400,
+                    )
+
+
+                department = (
+                    manager.department
+                )
+
+
+                if (
+                    department is None
+                    or not department.is_active
+                ):
+
+                    return JsonResponse(
+                        {
+                            "error":
+                                "Для заказа "
+                                "недоступна доставка.",
+                        },
+                        status=400,
+                    )
+
+
+                min_delivery_amount = (
+                    department.min_delivery_amount
+                    or Decimal("0.00")
+                )
+
+
+                if (
+                    order_amount
+                    < min_delivery_amount
+                ):
+
+                    return JsonResponse(
+                        {
+                            "error":
+                                "Недостаточная сумма "
+                                "для доставки.",
+
+                            "order_amount":
+                                str(order_amount),
+
+                            "min_delivery_amount":
+                                str(
+                                    min_delivery_amount
+                                ),
+                        },
+                        status=400,
+                    )
+
+
+            # =================================================
+            # Самовывоз
+            # =================================================
+
+            else:
+
+                # У черновика мог сохраниться адрес
+                # от ранее выбранной доставки.
+
+                order.delivery_address = None
+
+
+            # =================================================
+            # Финальная запись
+            # =================================================
+
+            order.amount = (
+                order_amount
+            )
+
+            order.status = (
+                Order.STATUS_CONFIRMED
+            )
+
+
+            order.save(
+                update_fields=[
+                    "amount",
+                    "status",
+                    "delivery_address",
+                    "updated_at",
+                ]
+            )
+
+
+            return JsonResponse(
+                {
+                    "order_id":
+                        str(order.pk),
+
+                    "number":
+                        order.number,
+
+                    "status":
+                        order.status,
+
+                    "status_name":
+                        order.get_status_display(),
+
+                    "amount":
+                        str(order.amount),
+                }
+            )
+
+
+    except Exception:
+
+        # Не проглатываем настоящую ошибку:
+        # Django/Gunicorn должен получить traceback.
+        raise
