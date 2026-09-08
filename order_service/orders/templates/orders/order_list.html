@@ -27,30 +27,71 @@
     </div>
 
     <div class="orders-grid">
+
         {% for order in orders %}
-        <a href="{% url 'order_detail' order.order_number %}" class="order-card-link">
+
+        {% if order.status == draft_status %}
+
+            <a
+                href="{% url 'order_draft_edit' order.id %}"
+                class="order-card-link"
+            >
+
+        {% else %}
+
+            <a
+                href="{% url 'order_detail' order.id %}"
+                class="order-card-link"
+            >
+
+        {% endif %}
             <div class="order-card">
+
                 <div class="order-card-head">
+
                     <div class="order-number">
-                        Заказ № {{ order.Number }}
+                        {% if order.number %}
+                            Заказ № {{ order.number }}
+                        {% else %}
+                            Заказ
+                        {% endif %}
                     </div>
+
                     <div>Юр. лицо</div>
                     <div>Сумма</div>
                     <div>Статус</div>
+
                 </div>
 
+
                 <div class="order-card-body">
-                    <div>{{ order.creation_date|slice:":10" }}</div>
-                    <div>{{ order.customer }}</div>
-                    <div class="total-amount">{{ order.total_amount }}</div>
+
+                    <div>
+                        {{ order.created_at|date:"d.m.Y" }}
+                    </div>
+
+                    <div>
+                        {{ order.customer.display_name }}
+                    </div>
+
+                    <div class="total-amount">
+                        {{ order.amount }}
+                    </div>
+
                     <div class="order-status-block">
 
                         <div class="order-status-title">
-                            <i class="bi {{ order.status_icon }}"></i>
-                            <span>{{ order.status }}</span>
+                            <span>
+                                {{ order.get_status_display }}
+                            </span>
                         </div>
 
-                        <div class="order-status-progress status-step-{{ order.status_value }}">
+                        <div
+                            class="
+                                order-status-progress
+                                status-step-{{ order.status }}
+                            "
+                        >
                             <span></span>
                             <span></span>
                             <span></span>
@@ -59,14 +100,20 @@
                         </div>
 
                     </div>
+
                 </div>
+
             </div>
         </a>
+
         {% empty %}
+
         <div class="empty-orders">
             Заказов пока нет
         </div>
+
         {% endfor %}
+
     </div>
 
 </div>

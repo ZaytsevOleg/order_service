@@ -82,4 +82,9 @@ urlpatterns = [
         views.confirm_order_draft,
         name="confirm_order_draft",
     ),
+    path(
+        "<uuid:order_id>/edit/",
+        views.order_draft_edit,
+        name="order_draft_edit",
+    ),
 ]

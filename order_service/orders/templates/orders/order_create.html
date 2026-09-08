@@ -585,9 +585,18 @@ document.addEventListener("DOMContentLoaded", function () {
     let promotionEvaluations =
         new Map();
 
-    let currentStep = 1;
+    let currentStep =
+        Number(
+            "{{ draft_current_step|default:1 }}"
+        ) || 1;
 
-    let draftOrderId = null;
+    let draftOrderId =
+        "{{ draft_order_id|default:'' }}";
+
+    if (!draftOrderId) {
+        draftOrderId = null;
+    }
+
     let draftItemsSaveTimer = null;
     let draftItemsSavePending = false;
 

@@ -6,10 +6,9 @@ from django.shortcuts import (
 )
 
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-
 from django.db.models import Q, Prefetch, Sum
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.urls import reverse
 from catalog.models import (
     Contract,
@@ -95,8 +94,14 @@ def order_list(request):
         request,
         "orders/order_list.html",
         {
-            "orders": orders,
-            "status_icons": STATUS_ICONS,
+            "orders":
+                orders,
+
+            "status_icons":
+                STATUS_ICONS,
+
+            "draft_status":
+                Order.STATUS_DRAFT,
         },
     )
 
@@ -5161,3 +5166,59 @@ def confirm_order_draft(
             },
             status=500,
         )
+
+
+@login_required
+def order_draft_edit(
+    request,
+    order_id,
+):
+
+    order = (
+        Order.objects
+        .select_related(
+            "customer",
+            "contract",
+            "price_type",
+            "delivery_address",
+        )
+        .filter(
+            pk=order_id,
+            user=request.user,
+            status=Order.STATUS_DRAFT,
+            contract__brand=request.brand.brand_id,
+        )
+        .first()
+    )
+
+
+    if order is None:
+        raise Http404(
+            "Черновик заказа не найден."
+        )
+
+
+    form = OrderCreateForm(
+        instance=order,
+        user=request.user,
+        brand=request.brand,
+    )
+
+
+    return render(
+        request,
+        "orders/order_create.html",
+        {
+            "form":
+                form,
+
+            "draft_order":
+                order,
+
+            "draft_order_id":
+                str(order.pk),
+
+            "draft_current_step":
+                order.current_step,
+        },
+    )
