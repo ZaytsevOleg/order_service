@@ -28,7 +28,10 @@ from sales.models import Order, OrderItem, WorkCalendarException
 import json
 from .forms import OrderCreateForm
 from django.utils import timezone
-from datetime import timedelta
+from datetime import (
+    datetime,
+    timedelta,
+)
 from django.views.decorators.http import require_POST, require_GET
 
 from orders.services.promo_engine import PromoEngine
@@ -36,6 +39,7 @@ from sales.shipping.shipping_calendar import (
     get_delivery_min_date,
     get_pickup_min_date,
     get_shipping_settings,
+    is_working_day,
 )
 
 
@@ -4113,4 +4117,366 @@ def renumber_order_items(order):
     OrderItem.objects.bulk_update(
         items,
         ["line_number"],
+    )    
+
+
+@login_required
+@require_POST
+def save_draft_shipping(
+    request,
+    order_id,
+):
+
+    # =========================================================
+    # Черновик
+    # =========================================================
+
+    order = (
+        Order.objects
+        .select_related(
+            "customer",
+            "contract",
+            "contract__manager",
+            "contract__manager__department",
+        )
+        .filter(
+            pk=order_id,
+            user=request.user,
+            status=Order.STATUS_DRAFT,
+            contract__brand=request.brand.brand_id,
+        )
+        .first()
+    )
+
+    if order is None:
+        return JsonResponse(
+            {
+                "error":
+                    "Черновик заказа не найден "
+                    "или недоступен.",
+            },
+            status=404,
+        )
+
+
+    # =========================================================
+    # JSON
+    # =========================================================
+
+    try:
+        payload = json.loads(
+            request.body.decode("utf-8")
+        )
+
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+    ):
+        return JsonResponse(
+            {
+                "error":
+                    "Некорректный JSON.",
+            },
+            status=400,
+        )
+
+
+    shipping_type = str(
+        payload.get(
+            "shipping_type",
+            "",
+        )
+    ).strip()
+
+    shipping_date_raw = str(
+        payload.get(
+            "shipping_date",
+            "",
+        )
+    ).strip()
+
+    delivery_address_id = str(
+        payload.get(
+            "delivery_address_id",
+            "",
+        )
+        or ""
+    ).strip()
+
+    comment = str(
+        payload.get(
+            "comment",
+            "",
+        )
+        or ""
+    ).strip()
+
+
+    # =========================================================
+    # Способ отгрузки
+    # =========================================================
+
+    if shipping_type not in {
+        Order.SHIPPING_PICKUP,
+        Order.SHIPPING_DELIVERY,
+    }:
+        return JsonResponse(
+            {
+                "error":
+                    "Некорректный способ отгрузки.",
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Дата
+    # =========================================================
+
+    try:
+        shipping_date = (
+            datetime.strptime(
+                shipping_date_raw,
+                "%Y-%m-%d",
+            ).date()
+        )
+
+    except ValueError:
+        return JsonResponse(
+            {
+                "error":
+                    "Некорректная дата отгрузки.",
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Проверяем минимальную разрешённую дату
+    # =========================================================
+
+    if (
+        shipping_type
+        == Order.SHIPPING_PICKUP
+    ):
+
+        min_shipping_date = (
+            get_pickup_min_date()
+        )
+
+    else:
+
+        min_shipping_date = (
+            get_delivery_min_date()
+        )
+
+
+    if shipping_date < min_shipping_date:
+
+        return JsonResponse(
+            {
+                "error": (
+                    "Выбранная дата отгрузки "
+                    "недоступна."
+                ),
+
+                "min_date":
+                    min_shipping_date.isoformat(),
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Проверяем, что выбранный день рабочий
+    # =========================================================
+
+    if not is_working_day(
+        shipping_date
+    ):
+        return JsonResponse(
+            {
+                "error":
+                    "Отгрузка в выбранный день "
+                    "недоступна.",
+            },
+            status=400,
+        )
+
+
+    # =========================================================
+    # Адрес / доставка
+    # =========================================================
+
+    delivery_address = None
+
+
+    if (
+        shipping_type
+        == Order.SHIPPING_DELIVERY
+    ):
+
+        if not delivery_address_id:
+            return JsonResponse(
+                {
+                    "error":
+                        "Не указан адрес доставки.",
+                },
+                status=400,
+            )
+
+
+        delivery_address = (
+            LegalEntityDeliveryAddress.objects
+            .filter(
+                pk=delivery_address_id,
+                legal_entity=order.customer,
+                is_active=True,
+            )
+            .first()
+        )
+
+
+        if delivery_address is None:
+            return JsonResponse(
+                {
+                    "error":
+                        "Адрес доставки недоступен.",
+                },
+                status=400,
+            )
+
+
+        # =====================================================
+        # Проверяем возможность доставки по сумме
+        # =====================================================
+
+        manager = (
+            order.contract.manager
+        )
+
+
+        if manager is None:
+            return JsonResponse(
+                {
+                    "error":
+                        "Для договора не указан менеджер.",
+                },
+                status=400,
+            )
+
+
+        department = (
+            manager.department
+        )
+
+
+        if (
+            department is None
+            or not department.is_active
+        ):
+            return JsonResponse(
+                {
+                    "error":
+                        "Для заказа недоступна доставка.",
+                },
+                status=400,
+            )
+
+
+        min_delivery_amount = (
+            department.min_delivery_amount
+            or Decimal("0.00")
+        )
+
+
+        if (
+            order.amount
+            < min_delivery_amount
+        ):
+            return JsonResponse(
+                {
+                    "error": (
+                        "Недостаточная сумма "
+                        "для доставки."
+                    ),
+
+                    "order_amount":
+                        str(order.amount),
+
+                    "min_delivery_amount":
+                        str(
+                            min_delivery_amount
+                        ),
+                },
+                status=400,
+            )
+
+
+    # =========================================================
+    # Сохраняем
+    # =========================================================
+
+    order.shipping_type = (
+        shipping_type
+    )
+
+    order.shipping_date = (
+        shipping_date
+    )
+
+    order.delivery_address = (
+        delivery_address
+    )
+
+    order.comment = (
+        comment
+    )
+
+    order.current_step = max(
+        order.current_step,
+        4,
+    )
+
+
+    order.save(
+        update_fields=[
+            "shipping_type",
+            "shipping_date",
+            "delivery_address",
+            "comment",
+            "current_step",
+            "updated_at",
+        ]
+    )
+
+
+    return JsonResponse(
+        {
+            "order_id":
+                str(order.pk),
+
+            "shipping_type":
+                order.shipping_type,
+
+            "shipping_date":
+                order.shipping_date.isoformat(),
+
+            "delivery_address_id": (
+                str(
+                    order.delivery_address_id
+                )
+                if order.delivery_address_id
+                else None
+            ),
+
+            "comment":
+                order.comment,
+
+            "amount":
+                str(order.amount),
+
+            "current_step":
+                order.current_step,
+        }
     )    
