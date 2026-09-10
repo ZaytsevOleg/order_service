@@ -4625,25 +4625,30 @@ document.addEventListener("DOMContentLoaded", function () {
             // Дата отгрузки
             // -----------------------------------------------------
 
-            if (shippingDateInput) {
-
-                shippingDateInput.value =
-                    state.order.shipping_date
-                    || "";
-            }
-
-
             if (
-                shippingDatePicker
+                shippingDateInput
                 && state.order.shipping_date
             ) {
 
-                shippingDatePicker.setDate(
-                    state.order.shipping_date,
-                    false
-                );
-            }
+                const picker =
+                    shippingDatePicker
+                    || shippingDateInput._flatpickr;
 
+
+                if (picker) {
+
+                    picker.setDate(
+                        state.order.shipping_date,
+                        false,
+                        "Y-m-d"
+                    );
+
+                } else {
+
+                    shippingDateInput.value =
+                        state.order.shipping_date;
+                }
+            }
 
             // -----------------------------------------------------
             // Комментарий
