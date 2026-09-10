@@ -5222,3 +5222,264 @@ def order_draft_edit(
                 order.current_step,
         },
     )
+@login_required
+@require_GET
+def order_draft_state(
+    request,
+    order_id,
+):
+
+    order = (
+        Order.objects
+        .select_related(
+            "customer",
+            "contract",
+            "price_type",
+            "delivery_address",
+        )
+        .filter(
+            pk=order_id,
+            user=request.user,
+            status=Order.STATUS_DRAFT,
+            contract__brand=request.brand.brand_id,
+        )
+        .first()
+    )
+
+    if order is None:
+        return JsonResponse(
+            {
+                "error":
+                    "Черновик заказа не найден "
+                    "или недоступен.",
+            },
+            status=404,
+        )
+
+
+    items = list(
+        OrderItem.objects
+        .select_related(
+            "product"
+        )
+        .filter(
+            order=order,
+        )
+        .order_by(
+            "line_number"
+        )
+    )
+
+
+    # =========================================================
+    # Остатки по складам организации
+    # =========================================================
+
+    product_ids = list({
+        item.product_id
+        for item in items
+        if item.product_id
+    })
+
+
+    stock_by_product = {}
+
+
+    if (
+        product_ids
+        and order.contract.organization_id
+    ):
+
+        warehouse_ids = list(
+            Warehouse.objects
+            .filter(
+                organization_id=(
+                    order.contract.organization_id
+                ),
+                is_active=True,
+            )
+            .values_list(
+                "warehouse_id",
+                flat=True,
+            )
+        )
+
+
+        if warehouse_ids:
+
+            stock_rows = (
+                StockBalance.objects
+                .filter(
+                    warehouse_id__in=warehouse_ids,
+                    product_id__in=product_ids,
+                )
+                .values(
+                    "product_id"
+                )
+                .annotate(
+                    total_quantity=Sum(
+                        "quantity"
+                    )
+                )
+            )
+
+
+            stock_by_product = {
+                str(row["product_id"]):
+                    (
+                        row["total_quantity"]
+                        or Decimal("0")
+                    )
+                for row in stock_rows
+            }
+
+
+    # =========================================================
+    # Строки заказа
+    # =========================================================
+
+    state_items = []
+
+
+    for item in items:
+
+        discount_percent = (
+            item.discount_percent
+            or Decimal("0.00")
+        )
+
+        final_price = (
+            item.price
+            or Decimal("0.00")
+        )
+
+
+        # В OrderItem хранится цена после скидки.
+        # Для отображения старой цены восстанавливаем
+        # исходную цену математически.
+
+        if (
+            discount_percent > 0
+            and discount_percent < 100
+            and final_price > 0
+        ):
+
+            base_price = (
+                final_price
+                * Decimal("100")
+                / (
+                    Decimal("100")
+                    - discount_percent
+                )
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+
+        else:
+
+            base_price = final_price
+
+
+        state_items.append(
+            {
+                "product_id":
+                    str(item.product_id),
+
+                "name":
+                    item.product_name,
+
+                "name_translation":
+                    (
+                        item.product_name_translation
+                        or ""
+                    ),
+
+                "article":
+                    item.article or "",
+
+                "quantity":
+                    float(item.quantity),
+
+                "base_price":
+                    str(base_price),
+
+                "price":
+                    str(final_price),
+
+                "discount_percent":
+                    str(discount_percent),
+
+                "amount":
+                    str(
+                        item.amount
+                        or Decimal("0.00")
+                    ),
+
+                "stock_quantity":
+                    str(
+                        stock_by_product.get(
+                            str(item.product_id),
+                            Decimal("0"),
+                        )
+                    ),
+
+                "promo_id":
+                    item.promo_id or "",
+
+                "promo_name":
+                    item.promo_name or "",
+
+                "is_promo_product":
+                    item.is_promo_product,
+
+                "is_promo_gift":
+                    item.is_promo_gift,
+            }
+        )
+
+
+    # =========================================================
+    # Восстанавливаем применённые промо
+    # =========================================================
+
+    promo_ids = {
+        item.promo_id
+        for item in items
+        if item.promo_id
+    }
+
+
+    promotions = []
+
+
+    for promo_id in promo_ids:
+
+        promo = (
+            PromoAction.objects
+            .prefetch_related(
+                "condition_products"
+            )
+            .filter(
+                pk=promo_id,
+            )
+            .first()
+        )
+
+
+        if promo is None:
+            continue
+
+
+        promo_items = [
+            item
+            for item in items
+            if (
+                item.promo_id == promo_id
+                and item.is_promo_product
+            )
+        ]
+
+
+        promo_quantity = 1
+

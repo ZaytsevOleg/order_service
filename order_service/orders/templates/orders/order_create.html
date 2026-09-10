@@ -650,6 +650,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let shippingDatePicker = null;
 
+    let isRestoringDraft = false;
+
     const shippingInfo = document.getElementById(
         "shippingInfo"
     );
@@ -1746,25 +1748,25 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
 
-function renderProducts(products) {
+    function renderProducts(products) {
 
-    if (!productCards) {
-        return;
-    }
+        if (!productCards) {
+            return;
+        }
 
-    productCards.innerHTML = "";
+        productCards.innerHTML = "";
 
-    if (!products.length) {
+        if (!products.length) {
 
-        productCards.innerHTML = `
-            <div class="product-empty-state">
-                Товары с доступной ценой
-                не найдены.
-            </div>
-        `;
+            productCards.innerHTML = `
+                <div class="product-empty-state">
+                    Товары с доступной ценой
+                    не найдены.
+                </div>
+            `;
 
-        return;
-    }
+            return;
+        }
 
 
     // =====================================================
@@ -4218,7 +4220,10 @@ function renderProducts(products) {
 
     function scheduleDraftItemsSave() {
 
-        if (!draftOrderId) {
+        if (
+            !draftOrderId
+            || isRestoringDraft
+        ) {
             return;
         }
 
@@ -4245,9 +4250,307 @@ function renderProducts(products) {
             );
     }    
 
-    function scheduleDraftPromotionsSave() {
+    async function loadDraftState() {
 
         if (!draftOrderId) {
+            return;
+        }
+
+
+        const response = await fetch(
+            `/orders/api/draft/${draftOrderId}/state/`,
+            {
+                headers: {
+                    "X-Requested-With":
+                        "XMLHttpRequest",
+                },
+            }
+        );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error
+                || `HTTP ${response.status}`
+            );
+        }
+
+
+        return data;
+    }
+
+    async function restoreDraftOrder() {
+
+        if (!draftOrderId) {
+            return;
+        }
+
+        isRestoringDraft = true;
+
+        try {
+
+            const state =
+                await loadDraftState();
+
+
+            console.log(
+                "Состояние черновика:",
+                state
+            );
+
+
+            // =====================================================
+            // Корзина
+            // =====================================================
+
+            cart.clear();
+
+
+            state.items.forEach(
+                function (item) {
+
+                    let cartKey;
+
+
+                    if (item.is_promo_gift) {
+
+                        cartKey =
+                            `promo-gift-${item.promo_id}-${item.product_id}`;
+
+                    } else if (item.is_promo_product) {
+
+                        cartKey =
+                            `promo-${item.promo_id}-${item.product_id}`;
+
+                    } else {
+
+                        cartKey =
+                            String(
+                                item.product_id
+                            );
+                    }
+
+
+                    cart.set(
+                        cartKey,
+                        {
+                            product_id:
+                                String(
+                                    item.product_id
+                                ),
+
+                            name:
+                                item.name,
+
+                            name_translation:
+                                item.name_translation
+                                || "",
+
+                            article:
+                                item.article
+                                || "",
+
+                            quantity:
+                                Number(
+                                    item.quantity
+                                ) || 0,
+
+                            base_price:
+                                Number(
+                                    item.base_price
+                                ) || 0,
+
+                            price:
+                                Number(
+                                    item.price
+                                ) || 0,
+
+                            discount_percent:
+                                Number(
+                                    item.discount_percent
+                                ) || 0,
+
+                            stock_quantity:
+                                Number(
+                                    item.stock_quantity
+                                ) || 0,
+
+                            promo_id:
+                                item.promo_id
+                                || null,
+
+                            promo_name:
+                                item.promo_name
+                                || "",
+
+                            is_promo_product:
+                                Boolean(
+                                    item.is_promo_product
+                                ),
+
+                            is_promo_gift:
+                                Boolean(
+                                    item.is_promo_gift
+                                ),
+                        }
+                    );
+                }
+            );
+
+
+            // =====================================================
+            // Применённые акции
+            // =====================================================
+
+            appliedPromotions.clear();
+
+
+            state.promotions.forEach(
+                function (promo) {
+
+                    appliedPromotions.set(
+                        String(
+                            promo.promo_id
+                        ),
+                        {
+                            promo_id:
+                                String(
+                                    promo.promo_id
+                                ),
+
+                            promo_name:
+                                promo.promo_name
+                                || "",
+
+                            quantity:
+                                Number(
+                                    promo.quantity
+                                ) || 1,
+                        }
+                    );
+                }
+            );
+
+
+            // =====================================================
+            // Отгрузка
+            // =====================================================
+
+            if (
+                shippingTypeSelect
+                && state.order.shipping_type
+            ) {
+
+                shippingTypeSelect.value =
+                    state.order.shipping_type;
+            }
+
+
+            shippingTypeRadios.forEach(
+                function (radio) {
+
+                    radio.checked =
+                        (
+                            radio.value
+                            === state.order.shipping_type
+                        );
+                }
+            );
+
+
+            if (shippingDateInput) {
+
+                shippingDateInput.value =
+                    state.order.shipping_date
+                    || "";
+            }
+
+
+            if (
+                shippingDatePicker
+                && state.order.shipping_date
+            ) {
+
+                shippingDatePicker.setDate(
+                    state.order.shipping_date,
+                    false
+                );
+            }
+
+
+            if (
+                addressSelect
+                && state.order.delivery_address_id
+            ) {
+
+                addressSelect.value =
+                    state.order.delivery_address_id;
+            }
+
+
+            if (commentInput) {
+
+                commentInput.value =
+                    state.order.comment
+                    || "";
+            }
+
+
+            // =====================================================
+            // Рендер
+            // =====================================================
+
+            renderCartItems();
+
+            updateCartSummary();
+
+            renderPromotions(
+                currentPromotions
+            );
+
+            updateShippingFields();
+
+            updateConfirmation();
+
+            updateNextStepState();
+
+
+            showStep(
+                currentStep
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Не удалось восстановить черновик:",
+                error
+            );
+
+            alert(
+                "Не удалось загрузить "
+                + "сохранённый черновик заказа."
+            );
+
+        } finally {
+
+            isRestoringDraft = false;
+        }
+    }
+
+
+
+    function scheduleDraftPromotionsSave() {
+
+        if (
+            !draftOrderId
+            || isRestoringDraft
+        ) {
             return;
         }
 
@@ -6205,9 +6508,16 @@ function renderProducts(products) {
         );
     }    
 
-    showStep(
-        currentStep
-    );
+    if (draftOrderId) {
+
+        restoreDraftOrder();
+
+    } else {
+
+        showStep(
+            currentStep
+        );
+    }
 
     if (submitBtn) {
 

@@ -87,4 +87,9 @@ urlpatterns = [
         views.order_draft_edit,
         name="order_draft_edit",
     ),
+    path(
+        "api/draft/<uuid:order_id>/state/",
+        views.order_draft_state,
+        name="order_draft_state",
+    ),    
 ]
