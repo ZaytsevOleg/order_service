@@ -3,6 +3,9 @@ from django.contrib import admin
 from .models import (
     ShippingSettings,
     WorkCalendarException,
+    Order,
+    OrderItem,
+    TransportCompany,
 )
 
 
@@ -42,3 +45,27 @@ class WorkCalendarExceptionAdmin(
     )
 
     date_hierarchy = "date"
+
+
+@admin.register(TransportCompany)
+class TransportCompanyAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "name",
+        "is_active",
+        "sort_order",
+    )
+
+    list_editable = (
+        "is_active",
+        "sort_order",
+    )
+
+    search_fields = (
+        "name",
+    )
+
+    ordering = (
+        "sort_order",
+        "name",
+    )

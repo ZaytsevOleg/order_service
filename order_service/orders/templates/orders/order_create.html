@@ -278,6 +278,28 @@
                             {% endif %}
                         </div>
 
+                        <div
+                            id="transportCompanyField"
+                            class="form-field"
+                            hidden>
+                            <label
+                                for="{{ form.transport_company.id_for_label }}">
+                                Транспортная компания
+                            </label>
+
+                            {{ form.transport_company }}
+
+                            <div class="field-hint">
+                                Выберите, если заказ необходимо
+                                передать транспортной компании.
+                            </div>
+
+                            {% if form.transport_company.errors %}
+                                <div class="field-errors">
+                                    {{ form.transport_company.errors }}
+                                </div>
+                            {% endif %}
+                        </div>                        
 
                         <div
                             id="deliveryAddressField"
@@ -639,6 +661,16 @@ document.addEventListener("DOMContentLoaded", function () {
     const addressSelect = document.getElementById(
         "id_delivery_address"
     );
+
+    const transportCompanySelect =
+        document.getElementById(
+            "id_transport_company"
+        );
+
+    const transportCompanyField =
+        document.getElementById(
+            "transportCompanyField"
+        );    
 
     const shippingTypeSelect = document.getElementById(
         "id_shipping_type"
@@ -4640,7 +4672,7 @@ document.addEventListener("DOMContentLoaded", function () {
             renderCartItems();
 
             updateCartSummary();
-            
+
             // =====================================================
             // Загружаем реальные условия отгрузки
             // ПОСЛЕ восстановления корзины и shipping_type
@@ -5974,6 +6006,25 @@ document.addEventListener("DOMContentLoaded", function () {
             addressSelect.value = "";
         }
 
+        if (transportCompanyField) {
+
+            transportCompanyField.hidden =
+                !isDelivery;
+        }
+
+
+        if (transportCompanySelect) {
+
+            transportCompanySelect.disabled =
+                !isDelivery;
+
+            if (!isDelivery) {
+
+                transportCompanySelect.value =
+                    "";
+            }
+        }
+
         updateNextStepState();
     }
 
@@ -6379,6 +6430,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 ? shippingTypeSelect.value
                 : "";
 
+        const transportCompanyId =
+            transportCompanySelect
+                ? transportCompanySelect.value
+                : "";
+
         const shippingDate =
             shippingDateInput
                 ? shippingDateInput.value
@@ -6422,6 +6478,9 @@ document.addEventListener("DOMContentLoaded", function () {
                         delivery_address_id:
                             deliveryAddressId,
 
+                        transport_company_id:
+                            transportCompanyId,         
+                                               
                         comment:
                             comment,
                     }

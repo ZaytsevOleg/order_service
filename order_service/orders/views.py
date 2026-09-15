@@ -23,7 +23,7 @@ from catalog.models import (
     PromoActionProduct,
     PromoGiftProduct,
 )
-from sales.models import Order, OrderItem, WorkCalendarException
+from sales.models import Order, OrderItem, WorkCalendarException, TransportCompany
 import json
 from .forms import OrderCreateForm
 from django.utils import timezone
@@ -4208,6 +4208,14 @@ def save_draft_shipping(
         or ""
     ).strip()
 
+    transport_company_id = str(
+        payload.get(
+            "transport_company_id",
+            "",
+        )
+        or ""
+    ).strip()    
+
     comment = str(
         payload.get(
             "comment",
@@ -4418,6 +4426,35 @@ def save_draft_shipping(
             )
 
 
+        transport_company = None
+
+
+        if (
+            shipping_type
+            == Order.SHIPPING_DELIVERY
+            and transport_company_id
+        ):
+
+            transport_company = (
+                TransportCompany.objects
+                .filter(
+                    pk=transport_company_id,
+                    is_active=True,
+                )
+                .first()
+            )
+
+            if transport_company is None:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Транспортная компания "
+                            "недоступна.",
+                    },
+                    status=400,
+                )
+
     # =========================================================
     # Сохраняем
     # =========================================================
@@ -4428,6 +4465,10 @@ def save_draft_shipping(
 
     order.shipping_date = (
         shipping_date
+    )
+
+    order.transport_company = (
+        transport_company
     )
 
     order.delivery_address = (
@@ -4449,6 +4490,7 @@ def save_draft_shipping(
             "shipping_type",
             "shipping_date",
             "delivery_address",
+            "transport_company",
             "comment",
             "current_step",
             "updated_at",
@@ -4472,6 +4514,12 @@ def save_draft_shipping(
                     order.delivery_address_id
                 )
                 if order.delivery_address_id
+                else None
+            ),
+            
+            "transport_company_id": (
+                str(order.transport_company_id)
+                if order.transport_company_id
                 else None
             ),
 

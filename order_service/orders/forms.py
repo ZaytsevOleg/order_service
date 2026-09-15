@@ -6,7 +6,7 @@ from catalog.models import (
     UserLegalEntityAccess,
     LegalEntity
 )
-from sales.models import Order
+from sales.models import Order, TransportCompany
 
 
 class OrderCreateForm(forms.ModelForm):
@@ -16,6 +16,7 @@ class OrderCreateForm(forms.ModelForm):
             "customer",
             "contract",
             "delivery_address",
+            "transport_company",
             "payment_method",
             "shipping_type",
             "shipping_date",
@@ -188,6 +189,29 @@ class OrderCreateForm(forms.ModelForm):
                 )
                 .order_by("address")
             )
+
+            self.fields[
+                "transport_company"
+            ].queryset = (
+                TransportCompany.objects
+                .filter(
+                    is_active=True,
+                )
+                .order_by(
+                    "sort_order",
+                    "name",
+                )
+            )
+
+            self.fields[
+                "transport_company"
+            ].required = False
+
+            self.fields[
+                "transport_company"
+            ].empty_label = (
+                "Без транспортной компании"
+            )            
 
     def clean(self):
 
