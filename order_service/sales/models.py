@@ -111,6 +111,16 @@ class Order(models.Model):
         choices=SHIPPING_CHOICES,
         verbose_name="Способ отгрузки",
     )
+
+    transport_company = models.ForeignKey(
+        "TransportCompany",
+        verbose_name="Транспортная компания",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="orders",
+    )
+
     shipping_date = models.DateField(
         blank=True,
         null=True,
@@ -314,6 +324,34 @@ class ShippingSettings(models.Model):
     def __str__(self):
         return "Настройки отгрузки"
 
+
+class TransportCompany(models.Model):
+
+    name = models.CharField(
+        "Наименование",
+        max_length=255,
+    )
+
+    is_active = models.BooleanField(
+        "Активна",
+        default=True,
+    )
+
+    sort_order = models.PositiveIntegerField(
+        "Порядок",
+        default=100,
+    )
+
+    class Meta:
+        verbose_name = "Транспортная компания"
+        verbose_name_plural = "Транспортные компании"
+        ordering = [
+            "sort_order",
+            "name",
+        ]
+
+    def __str__(self):
+        return self.name
 
 class WorkCalendarException(models.Model):
     DAY_TYPE_WORKING = "working"
