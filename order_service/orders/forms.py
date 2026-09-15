@@ -190,28 +190,28 @@ class OrderCreateForm(forms.ModelForm):
                 .order_by("address")
             )
 
-            self.fields[
-                "transport_company"
-            ].queryset = (
-                TransportCompany.objects
-                .filter(
-                    is_active=True,
-                )
-                .order_by(
-                    "sort_order",
-                    "name",
-                )
+        self.fields[
+            "transport_company"
+        ].queryset = (
+            TransportCompany.objects
+            .filter(
+                is_active=True,
             )
+            .order_by(
+                "sort_order",
+                "name",
+            )
+        )
 
-            self.fields[
-                "transport_company"
-            ].required = False
+        self.fields[
+            "transport_company"
+        ].required = False
 
-            self.fields[
-                "transport_company"
-            ].empty_label = (
-                "Без транспортной компании"
-            )            
+        self.fields[
+            "transport_company"
+        ].empty_label = (
+            "Без транспортной компании"
+        )            
 
     def clean(self):
 
