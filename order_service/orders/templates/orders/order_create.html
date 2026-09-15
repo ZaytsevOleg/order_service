@@ -402,6 +402,16 @@
                         </div>
 
                         <div
+                            class="confirm-info-item"
+                            id="confirmTransportCompanyBlock"
+                            hidden>
+                            <span>Транспортная компания</span>
+                            <strong id="confirmTransportCompany">
+                                —
+                            </strong>
+                        </div>                        
+
+                        <div
                             class="confirm-info-item
                                 confirm-info-comment">
                             <span>Комментарий</span>
@@ -5891,6 +5901,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 "confirmAddress"
             );
 
+        const confirmTransportCompany =
+            document.getElementById(
+                "confirmTransportCompany"
+            );
+
+        const confirmTransportCompanyBlock =
+            document.getElementById(
+                "confirmTransportCompanyBlock"
+            );            
+
 
         if (confirmClient) {
             confirmClient.textContent =
@@ -5963,6 +5983,32 @@ document.addEventListener("DOMContentLoaded", function () {
                     ? getSelectedText(addressSelect)
                     : "—";
         }
+
+        const hasTransportCompany =
+            (
+                shippingTypeSelect
+                && shippingTypeSelect.value === "delivery"
+                && transportCompanySelect
+                && transportCompanySelect.value
+            );
+
+
+        if (confirmTransportCompanyBlock) {
+
+            confirmTransportCompanyBlock.hidden =
+                !hasTransportCompany;
+        }
+
+
+        if (confirmTransportCompany) {
+
+            confirmTransportCompany.textContent =
+                hasTransportCompany
+                    ? getSelectedText(
+                        transportCompanySelect
+                    )
+                    : "—";
+        }        
 
         if (confirmComment) {
             confirmComment.textContent =

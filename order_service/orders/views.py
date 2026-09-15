@@ -4516,7 +4516,7 @@ def save_draft_shipping(
                 if order.delivery_address_id
                 else None
             ),
-            
+
             "transport_company_id": (
                 str(order.transport_company_id)
                 if order.transport_company_id
@@ -5134,6 +5134,35 @@ def confirm_order_draft(
                         status=400,
                     )
 
+            # =================================================
+            # Транспортная компания
+            # =================================================
+
+            if (
+                order.shipping_type
+                == Order.SHIPPING_DELIVERY
+                and order.transport_company_id
+            ):
+
+                transport_company_valid = (
+                    TransportCompany.objects
+                    .filter(
+                        pk=order.transport_company_id,
+                        is_active=True,
+                    )
+                    .exists()
+                )
+
+                if not transport_company_valid:
+
+                    return JsonResponse(
+                        {
+                            "error":
+                                "Выбранная транспортная компания "
+                                "больше недоступна.",
+                        },
+                        status=400,
+                    )
 
             # =================================================
             # Самовывоз
@@ -5145,6 +5174,7 @@ def confirm_order_draft(
                 # от ранее выбранной доставки.
 
                 order.delivery_address = None
+                order.transport_company = None
 
 
             # =================================================
@@ -5165,6 +5195,7 @@ def confirm_order_draft(
                     "amount",
                     "status",
                     "delivery_address",
+                    "transport_company",
                     "updated_at",
                 ]
             )
