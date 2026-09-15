@@ -2711,7 +2711,10 @@ document.addEventListener("DOMContentLoaded", function () {
         renderCartItems();
         updateNextStepState();
         
-        if (currentStep === 4) {
+        if (
+            currentStep === 4
+            && !isRestoringDraft
+        ) {
             loadShippingOptions();
         }
     }
@@ -4621,9 +4624,37 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
 
+
+
             // -----------------------------------------------------
+            // Комментарий
+            // -----------------------------------------------------
+
+            if (commentInput) {
+
+                commentInput.value =
+                    state.order.comment
+                    || "";
+            }
+
+            renderCartItems();
+
+            updateCartSummary();
+            
+            // =====================================================
+            // Загружаем реальные условия отгрузки
+            // ПОСЛЕ восстановления корзины и shipping_type
+            // =====================================================
+
+            await loadShippingOptions();
+
+
+            // =====================================================
             // Дата отгрузки
-            // -----------------------------------------------------
+            //
+            // Теперь minDate / maxDate / рабочие дни уже загружены,
+            // поэтому Flatpickr больше не перезапишет выбранную дату.
+            // =====================================================
 
             if (
                 shippingDateInput
@@ -4650,24 +4681,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             }
 
-            // -----------------------------------------------------
-            // Комментарий
-            // -----------------------------------------------------
-
-            if (commentInput) {
-
-                commentInput.value =
-                    state.order.comment
-                    || "";
-            }
-
             // =====================================================
             // Рендер
             // =====================================================
 
-            renderCartItems();
 
-            updateCartSummary();
 
             renderPromotions(
                 currentPromotions
@@ -6644,9 +6662,12 @@ document.addEventListener("DOMContentLoaded", function () {
             loadPromotions();
         }
 
-        if (step === 4) {
+        if (
+            step === 4
+            && !isRestoringDraft
+        ) {
             loadShippingOptions();
-        }        
+        }      
 
         if (step === 5) {
             updateConfirmation();
