@@ -506,6 +506,53 @@
             font-size: 18px;
         }
 
+        /* =========================================================
+        ДЕТАЛИ ДОСТАВКИ
+        ========================================================= */
+
+        .order-delivery-details {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+            gap: 14px;
+
+            margin-top: 16px;
+        }
+
+        .order-delivery-detail {
+            min-width: 0;
+            padding: 16px 18px;
+
+            background: var(--brand-surface-soft);
+            border-radius: 14px;
+        }
+
+        .order-delivery-detail span {
+            display: block;
+            margin-bottom: 6px;
+
+            color: var(--brand-muted);
+            font-size: 13px;
+            font-weight: 400;
+        }
+
+        .order-delivery-detail strong {
+            display: block;
+
+            color: var(--brand-text);
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.4;
+
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 768px) {
+
+            .order-delivery-details {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .order-comment {
             background: var(--brand-surface);
             border-left: 4px solid var(--brand-primary);

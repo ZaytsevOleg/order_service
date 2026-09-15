@@ -70,6 +70,35 @@
         </div>
     </div>
 
+    {% if order.shipping_type == "delivery" %}
+
+        <div class="order-delivery-details">
+
+            {% if order.delivery_address %}
+                <div class="order-delivery-detail">
+                    <span>Адрес доставки</span>
+
+                    <strong>
+                        {{ order.delivery_address.address }}
+                    </strong>
+                </div>
+            {% endif %}
+
+
+            {% if order.transport_company %}
+                <div class="order-delivery-detail">
+                    <span>Транспортная компания</span>
+
+                    <strong>
+                        {{ order.transport_company.name }}
+                    </strong>
+                </div>
+            {% endif %}
+
+        </div>
+
+    {% endif %}    
+
     {% if order.comment %}
     <div class="order-comment">
         <strong>Комментарий:</strong>

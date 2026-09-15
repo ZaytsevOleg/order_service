@@ -127,6 +127,7 @@ def order_detail(request, order_id):
             "contract",
             "price_type",
             "delivery_address",
+            "transport_company",
             "user",
         )
         .prefetch_related(
