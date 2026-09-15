@@ -327,6 +327,14 @@ class ShippingSettings(models.Model):
 
 class TransportCompany(models.Model):
 
+    id_1c = models.UUIDField(
+        "Идентификатор 1С",
+        unique=True,
+        db_index=True,
+        null=True,
+        blank=True,
+    )
+
     name = models.CharField(
         "Наименование",
         max_length=255,

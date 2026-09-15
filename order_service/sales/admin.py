@@ -52,6 +52,7 @@ class TransportCompanyAdmin(admin.ModelAdmin):
 
     list_display = (
         "name",
+        "id_1c",
         "is_active",
         "sort_order",
     )
@@ -63,6 +64,7 @@ class TransportCompanyAdmin(admin.ModelAdmin):
 
     search_fields = (
         "name",
+        "id_1c",
     )
 
     ordering = (
