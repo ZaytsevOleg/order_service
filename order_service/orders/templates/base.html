@@ -488,22 +488,22 @@
         }
 
         .order-info-item span {
-            display: block;
             color: var(--brand-muted);
             font-size: 13px;
-            margin-bottom: 8px;
+            font-weight: 400;
         }
 
         .order-info-item strong {
-            display: block;
             color: var(--brand-text);
-            font-size: 15px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.4;
         }
 
         .order-info-total strong {
             color: var(--brand-primary);
             font-size: 18px;
+            font-weight: 600;
         }
 
         /* =========================================================
@@ -512,10 +512,11 @@
 
         .order-delivery-details {
             display: grid;
-            grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+            grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
             gap: 14px;
 
-            margin-top: 16px;
+            margin-top: 14px;
+            margin-bottom: 30px;
         }
 
         .order-delivery-detail {
@@ -528,11 +529,12 @@
 
         .order-delivery-detail span {
             display: block;
-            margin-bottom: 6px;
+            margin-bottom: 7px;
 
             color: var(--brand-muted);
             font-size: 13px;
             font-weight: 400;
+            line-height: 1.3;
         }
 
         .order-delivery-detail strong {
@@ -550,8 +552,11 @@
 
             .order-delivery-details {
                 grid-template-columns: 1fr;
+                margin-bottom: 24px;
             }
         }
+
+
 
         .order-comment {
             background: var(--brand-surface);
@@ -570,21 +575,25 @@
 
         .products-header {
             display: flex;
+            align-items: center;
             justify-content: space-between;
-            align-items: end;
+            gap: 16px;
 
-            margin-bottom: 16px;
+            margin-bottom: 14px;
         }
 
         .products-header h2 {
             margin: 0;
-            font-size: 26px;
+
+            font-size: 24px;
             font-weight: 600;
+            line-height: 1.2;
         }
 
-        .products-header span {
+        .products-header > span {
             color: var(--brand-muted);
-            font-size: 14px;
+            font-size: 13px;
+            font-weight: 400;
         }
 
         .products-table-wrap {
@@ -601,12 +610,12 @@
             min-width: 900px;
         }
 
-        .products-table th {
-            color: var(--brand-muted);
-            font-size: 13px;
-            font-weight: 500;
-            border-bottom: 1px solid var(--brand-border);
+        .products-table th,
+        .products-table td {
+            padding: 13px 14px;
+            vertical-align: middle;
         }
+
 
         .product-promo-label {
             margin-top: 5px;
@@ -629,18 +638,34 @@
             font-weight: 500;
         }
 
+        .products-table th {
+            color: var(--brand-muted);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
         .products-table td {
-            vertical-align: middle;
             font-size: 14px;
         }
 
-        .product-name {
-            font-weight: 600;
-            color: var(--brand-text);
+        .products-table tbody tr {
+            border-bottom: 1px solid var(--brand-border);
         }
 
-        .product-name-translation {
+        .products-table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .products-table .product-name {
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.35;
+        }
+
+        .products-table .product-name-translation,
+        .products-table .product-article {
             margin-top: 3px;
+
             color: var(--brand-muted);
             font-size: 12px;
             font-weight: 400;
@@ -653,12 +678,6 @@
             color: var(--brand-primary);
             font-size: 12px;
             font-weight: 500;
-        }
-
-        .product-article {
-            color: var(--brand-muted);
-            font-size: 12px;
-            margin-top: 4px;
         }
 
         .product-row-total {

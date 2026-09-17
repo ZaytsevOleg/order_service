@@ -90,8 +90,8 @@ class Order(models.Model):
         max_length=50,
         blank=True,
         null=True,
-        unique=True,
-        verbose_name="Номер",
+        db_index=True,
+        verbose_name="Номер заказа 1С",
     )
 
     status = models.PositiveSmallIntegerField(
@@ -162,12 +162,17 @@ class Order(models.Model):
         verbose_name="Передан в 1С",
     )
 
-    one_c_order_id = models.CharField(
-        max_length=255,
+    one_c_order_id = models.UUIDField(
         blank=True,
         null=True,
         unique=True,
         verbose_name="Идентификатор заказа в 1С",
+    )
+
+    one_c_order_date = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Дата заказа в 1С",
     )
 
     current_step = models.PositiveSmallIntegerField(
@@ -407,4 +412,152 @@ class WorkCalendarException(models.Model):
         return (
             f"{self.date:%d.%m.%Y} — "
             f"{self.get_day_type_display()}"
+        )
+
+
+class OrderLog(models.Model):
+
+    LEVEL_INFO = "info"
+    LEVEL_SUCCESS = "success"
+    LEVEL_WARNING = "warning"
+    LEVEL_ERROR = "error"
+
+    LEVEL_CHOICES = [
+        (
+            LEVEL_INFO,
+            "Информация",
+        ),
+        (
+            LEVEL_SUCCESS,
+            "Успешно",
+        ),
+        (
+            LEVEL_WARNING,
+            "Предупреждение",
+        ),
+        (
+            LEVEL_ERROR,
+            "Ошибка",
+        ),
+    ]
+
+
+    EVENT_CREATED = "created"
+
+    EVENT_CONFIRM_STARTED = (
+        "confirm_started"
+    )
+
+    EVENT_1C_REQUEST = (
+        "1c_request"
+    )
+
+    EVENT_1C_SUCCESS = (
+        "1c_success"
+    )
+
+    EVENT_1C_ERROR = (
+        "1c_error"
+    )
+
+    EVENT_STATUS_CHANGED = (
+        "status_changed"
+    )
+
+
+    EVENT_CHOICES = [
+        (
+            EVENT_CREATED,
+            "Создание черновика",
+        ),
+        (
+            EVENT_CONFIRM_STARTED,
+            "Начало оформления",
+        ),
+        (
+            EVENT_1C_REQUEST,
+            "Передача в 1С",
+        ),
+        (
+            EVENT_1C_SUCCESS,
+            "Заказ создан в 1С",
+        ),
+        (
+            EVENT_1C_ERROR,
+            "Ошибка передачи в 1С",
+        ),
+        (
+            EVENT_STATUS_CHANGED,
+            "Изменение статуса",
+        ),
+    ]
+
+
+    order = models.ForeignKey(
+        Order,
+        verbose_name="Заказ",
+        on_delete=models.CASCADE,
+        related_name="logs",
+    )
+
+
+    created_at = models.DateTimeField(
+        "Дата и время",
+        auto_now_add=True,
+        db_index=True,
+    )
+
+
+    event_type = models.CharField(
+        "Событие",
+        max_length=50,
+        choices=EVENT_CHOICES,
+        db_index=True,
+    )
+
+
+    level = models.CharField(
+        "Уровень",
+        max_length=20,
+        choices=LEVEL_CHOICES,
+        default=LEVEL_INFO,
+    )
+
+
+    message = models.TextField(
+        "Сообщение",
+    )
+
+
+    details = models.JSONField(
+        "Дополнительные данные",
+        default=dict,
+        blank=True,
+    )
+
+
+    user = models.ForeignKey(
+        "auth.User",
+        verbose_name="Пользователь",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+
+    class Meta:
+        verbose_name = "Событие заказа"
+        verbose_name_plural = "Журнал заказа"
+
+        ordering = [
+            "-created_at",
+        ]
+
+
+    def __str__(self):
+
+        return (
+            f"{self.created_at:%d.%m.%Y %H:%M:%S}"
+            f" — "
+            f"{self.get_event_type_display()}"
         )

@@ -23,7 +23,16 @@ from catalog.models import (
     PromoActionProduct,
     PromoGiftProduct,
 )
-from sales.models import Order, OrderItem, WorkCalendarException, TransportCompany
+from sales.models import (
+    Order, 
+    OrderItem, 
+    OrderLog,
+    WorkCalendarException, 
+    TransportCompany
+    )
+from sales.services.order_logging import (
+    log_order_event,
+)
 import json
 from .forms import OrderCreateForm
 from django.utils import timezone
@@ -2602,22 +2611,40 @@ def create_order_draft(request):
         )
 
 
-    draft = Order.objects.create(
-        user=request.user,
-        customer=customer,
-        contract=contract,
-        price_type=access.price_type,
-        payment_method=payment_method,
-        shipping_type=Order.SHIPPING_PICKUP,
-        status=Order.STATUS_DRAFT,
-        discount_percent=(
-            access.discount_percent
-            or Decimal("0.00")
-        ),
-        amount=Decimal("0.00"),
-        current_step=2,
-    )
+    with transaction.atomic():
 
+        draft = Order.objects.create(
+            user=request.user,
+            customer=customer,
+            contract=contract,
+            price_type=access.price_type,
+            payment_method=payment_method,
+            shipping_type=Order.SHIPPING_PICKUP,
+            status=Order.STATUS_DRAFT,
+            discount_percent=(
+                access.discount_percent
+                or Decimal("0.00")
+            ),
+            amount=Decimal("0.00"),
+            current_step=2,
+        )
+
+        log_order_event(
+            order=draft,
+            event_type=OrderLog.EVENT_CREATED,
+            message="Создан черновик заказа.",
+            user=request.user,
+            details={
+                "customer_id":
+                    str(draft.customer_id),
+
+                "contract_id":
+                    str(draft.contract_id),
+
+                "payment_method":
+                    draft.payment_method,
+            },
+        )
 
     return JsonResponse(
         {
@@ -5233,20 +5260,18 @@ def confirm_order_draft(
 
     except Exception as exc:
 
-        import traceback
-
-        traceback.print_exc()
+        logger.exception(
+            "Ошибка оформления заказа %s",
+            order_id,
+        )
 
         return JsonResponse(
             {
-                "error": str(exc),
-                "exception_type": (
-                    type(exc).__name__
-                ),
+                "error":
+                    "Произошла ошибка при оформлении заказа."
             },
             status=500,
         )
-
 
 @login_required
 def order_draft_edit(

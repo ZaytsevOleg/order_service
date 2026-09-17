@@ -5,6 +5,7 @@ from .models import (
     WorkCalendarException,
     Order,
     OrderItem,
+    OrderLog,
     TransportCompany,
 )
 
@@ -71,3 +72,5 @@ class TransportCompanyAdmin(admin.ModelAdmin):
         "sort_order",
         "name",
     )
+
+

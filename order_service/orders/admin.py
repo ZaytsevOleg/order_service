@@ -3,6 +3,7 @@ from django.contrib import admin
 from sales.models import (
     Order,
     OrderItem,
+    OrderLog,
 )
 
 
@@ -31,6 +32,51 @@ class OrderItemInline(admin.TabularInline):
         "product",
     )
 
+class OrderLogInline(
+    admin.TabularInline
+):
+
+    model = OrderLog
+
+    extra = 0
+
+    can_delete = False
+
+    fields = (
+        "created_at",
+        "level",
+        "event_type",
+        "message",
+        "user",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "level",
+        "event_type",
+        "message",
+        "user",
+    )
+
+    ordering = (
+        "-created_at",
+    )
+
+
+    def has_add_permission(
+        self,
+        request,
+        obj=None,
+    ):
+        return False
+
+
+    def has_delete_permission(
+        self,
+        request,
+        obj=None,
+    ):
+        return False
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
@@ -87,6 +133,7 @@ class OrderAdmin(admin.ModelAdmin):
 
     inlines = [
         OrderItemInline,
+        OrderLogInline,
     ]
 
     ordering = (
