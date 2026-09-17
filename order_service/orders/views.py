@@ -41,7 +41,10 @@ from datetime import (
     timedelta,
 )
 from django.views.decorators.http import require_POST, require_GET
-
+from sales.services.warehouse import (
+    find_order_warehouse,
+    OrderWarehouseError,
+)
 from orders.services.promo_engine import PromoEngine
 from sales.shipping.shipping_calendar import (
     get_delivery_min_date,
@@ -4797,33 +4800,6 @@ def confirm_order_draft(
             # поэтому участвуют в проверке остатка.
             # =================================================
 
-            warehouse_ids = list(
-                Warehouse.objects
-                .filter(
-                    organization_id=(
-                        contract.organization_id
-                    ),
-                    is_active=True,
-                )
-                .values_list(
-                    "warehouse_id",
-                    flat=True,
-                )
-            )
-
-
-            if not warehouse_ids:
-
-                return JsonResponse(
-                    {
-                        "error":
-                            "Для организации договора "
-                            "не настроены активные склады.",
-                    },
-                    status=400,
-                )
-
-
             quantities_by_product = {}
 
 
@@ -4843,13 +4819,37 @@ def confirm_order_draft(
                     + item.quantity
                 )
 
+            # =========================================================
+            # Определяем склад заказа
+            # =========================================================
+
+            try:
+
+                order_warehouse = (
+                    find_order_warehouse(
+                        organization_id=(
+                            contract.organization_id
+                        ),
+                        product_ids=(
+                            quantities_by_product.keys()
+                        ),
+                    )
+                )
+
+            except OrderWarehouseError as exc:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            str(exc),
+                    },
+                    status=400,
+                )
 
             stock_rows = (
                 StockBalance.objects
                 .filter(
-                    warehouse_id__in=(
-                        warehouse_ids
-                    ),
+                    warehouse=order_warehouse,
                     product_id__in=(
                         quantities_by_product.keys()
                     ),
@@ -4863,6 +4863,7 @@ def confirm_order_draft(
                     )
                 )
             )
+
 
 
             stock_by_product = {
@@ -4924,19 +4925,27 @@ def confirm_order_draft(
                     )
 
 
-            if shortages:
+                if shortages:
 
-                return JsonResponse(
-                    {
-                        "error":
-                            "Недостаточно товара "
-                            "на складе.",
+                    return JsonResponse(
+                        {
+                            "error":
+                                "Недостаточно товара "
+                                "на складе.",
 
-                        "shortages":
-                            shortages,
-                    },
-                    status=409,
-                )
+                            "warehouse_id":
+                                str(
+                                    order_warehouse.warehouse_id
+                                ),
+
+                            "warehouse_name":
+                                order_warehouse.name,
+
+                            "shortages":
+                                shortages,
+                        },
+                        status=409,
+                    )
 
 
             # =================================================
@@ -5162,9 +5171,9 @@ def confirm_order_draft(
                         status=400,
                     )
 
-            # =================================================
+            # =========================================================
             # Транспортная компания
-            # =================================================
+            # =========================================================
 
             if (
                 order.shipping_type
@@ -5181,6 +5190,7 @@ def confirm_order_draft(
                     .exists()
                 )
 
+
                 if not transport_company_valid:
 
                     return JsonResponse(
@@ -5192,14 +5202,15 @@ def confirm_order_draft(
                         status=400,
                     )
 
-            # =================================================
+
+            # =========================================================
             # Самовывоз
-            # =================================================
+            # =========================================================
 
-            else:
-
-                # У черновика мог сохраниться адрес
-                # от ранее выбранной доставки.
+            if (
+                order.shipping_type
+                == Order.SHIPPING_PICKUP
+            ):
 
                 order.delivery_address = None
                 order.transport_company = None
