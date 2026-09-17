@@ -4350,7 +4350,7 @@ def save_draft_shipping(
     # =========================================================
 
     delivery_address = None
-
+    transport_company = None
 
     if (
         shipping_type
@@ -4454,7 +4454,7 @@ def save_draft_shipping(
             )
 
 
-        transport_company = None
+        
 
 
         if (
