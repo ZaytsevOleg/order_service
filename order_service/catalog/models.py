@@ -90,6 +90,23 @@ class LegalEntity(models.Model):
         verbose_name="Полное наименование",
     )
 
+    partner_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name="Идентификатор партнера в 1С",
+    )
+
+    price_type = models.ForeignKey(
+        PriceType,
+        on_delete=models.PROTECT,
+        related_name="customers",
+        blank=True,
+        null=True,
+        verbose_name="Актуальный тип цен",
+    )
+
     client_type = models.CharField(
         max_length=20,
         choices=CLIENT_TYPE_CHOICES,
@@ -278,6 +295,100 @@ class LegalEntityDeliveryAddress(models.Model):
         return self.address
 
 
+
+class Agreement(models.Model):
+
+    ZERO_UUID = (
+        "00000000-0000-0000-0000-000000000000"
+    )
+
+    agreement_id = models.CharField(
+        max_length=255,
+        primary_key=True,
+        verbose_name="Идентификатор соглашения в 1С",
+    )
+
+    name = models.CharField(
+        max_length=500,
+        verbose_name="Наименование",
+    )
+
+    is_typical = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="Типовое",
+    )
+
+    counterparty_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name="Контрагент в 1С",
+    )
+
+    partner_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name="Партнер в 1С",
+    )
+
+    organization_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name="Организация в 1С",
+    )
+
+    price_type_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name="Вид цен в 1С",
+    )
+
+    status = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Статус",
+    )
+
+    is_approved = models.BooleanField(
+        default=False,
+        verbose_name="Согласовано",
+    )
+
+    operation = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Хозяйственная операция",
+    )
+
+    price_includes_vat = models.BooleanField(
+        default=False,
+        verbose_name="Цена включает НДС",
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name="Активно",
+    )
+
+    class Meta:
+        verbose_name = "Соглашение с клиентом"
+        verbose_name_plural = "Соглашения с клиентами"
+        ordering = (
+            "name",
+        )
+
+    def __str__(self):
+        return self.name
+
 class Contract(models.Model):
     BRAND_GUINOT = "e3154c7c-4423-11e9-8120-a21e6608e067"
     BRAND_RHEA = "e3154c7d-4423-11e9-8120-a21e6608e067"
@@ -330,6 +441,15 @@ class Contract(models.Model):
         null=True,
         blank=True,
         verbose_name="Менеджер",
+    )
+
+    agreement = models.ForeignKey(
+        "Agreement",
+        on_delete=models.PROTECT,
+        related_name="contracts",
+        blank=True,
+        null=True,
+        verbose_name="Соглашение",
     )
 
     is_default = models.BooleanField(
@@ -1174,5 +1294,3 @@ class Manager(models.Model):
     def __str__(self):
         return self.name
 
-
-            

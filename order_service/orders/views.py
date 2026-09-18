@@ -52,7 +52,9 @@ from sales.shipping.shipping_calendar import (
     get_shipping_settings,
     is_working_day,
 )
+import logging
 
+logger = logging.getLogger(__name__)
 
 STATUS_ICONS = {
     Order.STATUS_DRAFT: "bi-pencil",
@@ -2523,6 +2525,8 @@ def create_order_draft(request):
             status=400,
         )
 
+    
+
     if payment_method not in {
         Order.PAYMENT_CASH,
         Order.PAYMENT_CASHLESS,
@@ -4675,6 +4679,19 @@ def confirm_order_draft(
                     status=400,
                 )
 
+            # =================================================
+            # Партнер 1С
+            # =================================================
+
+            if not order.customer.partner_id:
+
+                return JsonResponse(
+                    {
+                        "error":
+                            "Для клиента не указан партнер 1С.",
+                    },
+                    status=400,
+                )
 
             # =================================================
             # Форма оплаты
@@ -4727,6 +4744,8 @@ def confirm_order_draft(
                     },
                     status=400,
                 )
+
+
 
 
             # =================================================
