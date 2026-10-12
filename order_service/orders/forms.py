@@ -89,7 +89,7 @@ class OrderCreateForm(forms.ModelForm):
             )
             .select_related(
                 "legal_entity",
-                "price_type",
+                "legal_entity__price_type",
             )
         )
 

@@ -139,7 +139,7 @@ def order_detail(request, order_id):
         .select_related(
             "customer",
             "contract",
-            "price_type",
+            "legal_entity__price_type",
             "delivery_address",
             "transport_company",
             "user",
@@ -187,7 +187,7 @@ def order_create(request):
             )
 
             order.user = request.user
-            order.price_type = access.price_type
+            order.price_type = access.legal_entity.price_type
             order.discount_percent = (
                 access.discount_percent
             )
@@ -223,7 +223,7 @@ def customer_options(request, customer_id):
             is_active=True,
             legal_entity__is_active=True,
         )
-        .select_related("price_type")
+        .select_related("legal_entity__price_type")
         .first()
     )
 
@@ -261,13 +261,13 @@ def customer_options(request, customer_id):
         {
             "price_type": {
                 "id": (
-                    access.price_type_id
-                    if access.price_type_id
+                    access.legal_entity.price_type_id
+                    if access.legal_entity.price_type_id
                     else None
                 ),
                 "name": (
-                    access.price_type.name
-                    if access.price_type
+                    access.legal_entity.price_type.name
+                    if access.legal_entity.price_type
                     else None
                 ),
             },
@@ -327,7 +327,7 @@ def customer_products(request, customer_id):
             legal_entity__is_active=True,
         )
         .select_related(
-            "price_type",
+            "legal_entity__price_type",
         )
         .first()
     )
@@ -340,7 +340,7 @@ def customer_products(request, customer_id):
             status=403,
         )
 
-    if access.price_type_id is None:
+    if access.legal_entity.price_type_id is None:
         return JsonResponse(
             {
                 "error": (
@@ -433,7 +433,7 @@ def customer_products(request, customer_id):
     prices = (
         Price.objects
         .filter(
-            price_type_id=access.price_type_id,
+            price_type_id=access.legal_entity.price_type_id,
             product__brand_id=contract.brand,
             product__is_active=True,
             product__is_customer_selectable=True,
@@ -649,8 +649,8 @@ def customer_products(request, customer_id):
             ),
 
             "price_type": {
-                "id": access.price_type_id,
-                "name": access.price_type.name,
+                "id": access.legal_entity.price_type_id,
+                "name": access.legal_entity.price_type.name,
             },
 
             "currency": {
@@ -1058,7 +1058,7 @@ def evaluate_promotions(
             legal_entity__is_active=True,
         )
         .select_related(
-            "price_type",
+            "legal_entity__price_type",
         )
         .first()
     )
@@ -1076,7 +1076,7 @@ def evaluate_promotions(
         )
 
 
-    if access.price_type_id is None:
+    if access.legal_entity.price_type_id is None:
 
         return JsonResponse(
             {
@@ -1242,7 +1242,7 @@ def evaluate_promotions(
         Price.objects
         .filter(
             price_type_id=(
-                access.price_type_id
+                access.legal_entity.price_type_id
             ),
             product_id__in=(
                 product_ids
@@ -1596,7 +1596,7 @@ def apply_promotion(
             legal_entity__is_active=True,
         )
         .select_related(
-            "price_type",
+            "legal_entity__price_type",
         )
         .first()
     )
@@ -1611,7 +1611,7 @@ def apply_promotion(
         )
 
 
-    if access.price_type_id is None:
+    if access.legal_entity.price_type_id is None:
         return JsonResponse(
             {
                 "error": (
@@ -1793,7 +1793,7 @@ def apply_promotion(
         Price.objects
         .filter(
             price_type_id=(
-                access.price_type_id
+                access.legal_entity.price_type_id
             ),
             product_id__in=product_ids,
             product__brand_id=contract.brand,
@@ -2548,7 +2548,7 @@ def create_order_draft(request):
             legal_entity__is_active=True,
         )
         .select_related(
-            "price_type",
+            "legal_entity__price_type",
             "legal_entity",
         )
         .first()
@@ -2564,7 +2564,7 @@ def create_order_draft(request):
         )
 
 
-    if access.price_type_id is None:
+    if access.legal_entity.price_type_id is None:
         return JsonResponse(
             {
                 "error": (
@@ -2624,7 +2624,7 @@ def create_order_draft(request):
             user=request.user,
             customer=customer,
             contract=contract,
-            price_type=access.price_type,
+            price_type=access.legal_entity.price_type,
             payment_method=payment_method,
             shipping_type=Order.SHIPPING_PICKUP,
             status=Order.STATUS_DRAFT,
@@ -2757,7 +2757,7 @@ def save_draft_items(
             legal_entity__is_active=True,
         )
         .select_related(
-            "price_type"
+            "legal_entity__price_type"
         )
         .first()
     )
@@ -2771,7 +2771,7 @@ def save_draft_items(
             status=403,
         )
 
-    if access.price_type_id is None:
+    if access.legal_entity.price_type_id is None:
         return JsonResponse(
             {
                 "error":
@@ -2960,7 +2960,7 @@ def save_draft_items(
     prices = (
         Price.objects
         .filter(
-            price_type_id=access.price_type_id,
+            price_type_id=access.legal_entity.price_type_id,
             product_id__in=product_ids,
             product__brand_id=contract.brand,
             product__is_active=True,
@@ -3287,7 +3287,7 @@ def save_draft_items(
         )
 
         order.price_type = (
-            access.price_type
+            access.legal_entity.price_type
         )
 
         order.discount_percent = (
@@ -3411,7 +3411,7 @@ def save_draft_promotions(
             legal_entity__is_active=True,
         )
         .select_related(
-            "price_type"
+            "legal_entity__price_type"
         )
         .first()
     )
@@ -3424,7 +3424,7 @@ def save_draft_promotions(
             status=403,
         )
 
-    if access.price_type_id is None:
+    if access.legal_entity.price_type_id is None:
         return JsonResponse(
             {
                 "error":
@@ -3737,7 +3737,7 @@ def save_draft_promotions(
             Price.objects
             .filter(
                 price_type_id=(
-                    access.price_type_id
+                    access.legal_entity.price_type_id
                 ),
                 product_id__in=(
                     promo_product_ids
@@ -4651,7 +4651,7 @@ def confirm_order_draft(
                     legal_entity__is_active=True,
                 )
                 .select_related(
-                    "price_type"
+                    "legal_entity__price_type"
                 )
                 .first()
             )
@@ -4668,7 +4668,7 @@ def confirm_order_draft(
                 )
 
 
-            if access.price_type_id is None:
+            if access.legal_entity.price_type_id is None:
 
                 return JsonResponse(
                     {
