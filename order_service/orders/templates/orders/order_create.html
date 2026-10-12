@@ -6321,10 +6321,24 @@ document.addEventListener("DOMContentLoaded", function () {
             "change",
             async function () {
 
+                console.log("CUSTOMER CHANGED", {
+                    customerId: customerSelect.value,
+                    draftOrderId: draftOrderId,
+                    oldAddressId: addressSelect?.value,
+                    oldContractId: contractSelect?.value,
+                });
+
                 cart.clear();
                 updateCartSummary();
 
                 await loadCustomerOptions();
+
+                console.log("CUSTOMER OPTIONS LOADED", {
+                    customerId: customerSelect.value,
+                    draftOrderId: draftOrderId,
+                    newAddressId: addressSelect?.value,
+                    newContractId: contractSelect?.value,
+                });
 
                 if (contractSelect.value) {
                     loadProducts();
@@ -6495,6 +6509,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 ? commentInput.value
                 : "";
 
+        console.log("DEBUG SHIPPING", {
+            draftOrderId: draftOrderId,
+            customerId: customerSelect?.value,
+            deliveryAddressId: deliveryAddressId,
+            selectedAddressText:
+                addressSelect?.selectedOptions[0]?.text,
+            shippingType: shippingType
+        });
 
         const response = await fetch(
             `/orders/api/draft/${draftOrderId}/shipping/`,
