@@ -880,18 +880,12 @@ document.addEventListener("DOMContentLoaded", function () {
                         "XMLHttpRequest",
                 },
 
-                body: JSON.stringify(
-                    {
-                        customer_id:
-                            customerId,
-
-                        contract_id:
-                            contractId,
-
-                        payment_method:
-                            paymentMethod,
-                    }
-                ),
+                body: JSON.stringify({
+                    order_id: draftOrderId || null,
+                    customer_id: customerId,
+                    contract_id: contractId,
+                    payment_method: paymentMethod,
+                }),
             }
         );
 

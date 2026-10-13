@@ -2486,6 +2486,9 @@ def create_order_draft(request):
             status=400,
         )
 
+    order_id = str(
+        payload.get("order_id") or ""
+    ).strip()
 
     customer_id = str(
         payload.get(
@@ -2620,36 +2623,100 @@ def create_order_draft(request):
 
     with transaction.atomic():
 
-        draft = Order.objects.create(
-            user=request.user,
-            customer=customer,
-            contract=contract,
-            price_type=access.legal_entity.price_type,
-            payment_method=payment_method,
-            shipping_type=Order.SHIPPING_PICKUP,
-            status=Order.STATUS_DRAFT,
-            discount_percent=(
+        if order_id:
+
+            draft = (
+                Order.objects
+                .select_for_update()
+                .filter(
+                    pk=order_id,
+                    user=request.user,
+                    status=Order.STATUS_DRAFT,
+                    contract__brand=request.brand.brand_id,
+                )
+                .first()
+            )
+
+            if draft is None:
+                return JsonResponse(
+                    {
+                        "error": "Черновик заказа недоступен.",
+                    },
+                    status=404,
+                )
+
+            customer_changed = (
+                draft.customer_id != customer.pk
+            )
+
+            contract_changed = (
+                draft.contract_id != contract.pk
+            )
+
+            if customer_changed or contract_changed:
+
+                # Удаляем позиции, относящиеся
+                # к предыдущему клиенту/договору.
+                OrderItem.objects.filter(
+                    order=draft,
+                ).delete()
+
+                draft.amount = Decimal("0.00")
+
+                # Сбрасываем параметры отгрузки.
+                draft.delivery_address = None
+                draft.transport_company = None
+                draft.shipping_date = None
+                draft.shipping_type = Order.SHIPPING_PICKUP
+
+                draft.current_step = 2
+
+            draft.customer = customer
+            draft.contract = contract
+            draft.price_type = customer.price_type
+            draft.payment_method = payment_method
+            draft.discount_percent = (
                 access.discount_percent
                 or Decimal("0.00")
-            ),
-            amount=Decimal("0.00"),
-            current_step=2,
-        )
+            )
+
+            draft.save()
+
+            event_type = OrderLog.EVENT_UPDATED
+
+            message = "Обновлены данные черновика заказа."
+
+        else:
+
+            draft = Order.objects.create(
+                user=request.user,
+                customer=customer,
+                contract=contract,
+                price_type=customer.price_type,
+                payment_method=payment_method,
+                shipping_type=Order.SHIPPING_PICKUP,
+                status=Order.STATUS_DRAFT,
+                discount_percent=(
+                    access.discount_percent
+                    or Decimal("0.00")
+                ),
+                amount=Decimal("0.00"),
+                current_step=2,
+            )
+
+            event_type = OrderLog.EVENT_CREATED
+
+            message = "Создан черновик заказа."
 
         log_order_event(
             order=draft,
-            event_type=OrderLog.EVENT_CREATED,
-            message="Создан черновик заказа.",
+            event_type=event_type,
+            message=message,
             user=request.user,
             details={
-                "customer_id":
-                    str(draft.customer_id),
-
-                "contract_id":
-                    str(draft.contract_id),
-
-                "payment_method":
-                    draft.payment_method,
+                "customer_id": str(draft.customer_id),
+                "contract_id": str(draft.contract_id),
+                "payment_method": draft.payment_method,
             },
         )
 
