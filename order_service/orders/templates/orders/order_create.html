@@ -837,6 +837,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     async function createDraftOrder() {
 
+        console.log("CREATE OR UPDATE DRAFT", {
+            draftOrderId,
+            customerId: customerSelect?.value,
+            contractId: contractSelect?.value,
+            paymentMethod: paymentMethodSelect?.value
+        });    
+
         const customerId =
             customerSelect
                 ? customerSelect.value
@@ -907,7 +914,11 @@ document.addEventListener("DOMContentLoaded", function () {
             data.order_id;
 
 
+        console.log("DRAFT RESPONSE", data);
+
         return data;
+
+        
     }
 
     function isShippingDateAllowed(date) {
@@ -6210,35 +6221,29 @@ document.addEventListener("DOMContentLoaded", function () {
             * с шага 1 на шаг 2
             * создаём черновик в БД.
             */
-            if (
-                currentStep === 1
-                && !draftOrderId
-            ) {
+            if (currentStep === 1) {
 
                 nextBtn.disabled = true;
 
                 try {
-
                     await createDraftOrder();
 
                 } catch (error) {
 
                     console.error(
-                        "Ошибка создания черновика:",
+                        "Ошибка сохранения реквизитов черновика:",
                         error
                     );
 
                     alert(
                         error.message
-                        || "Не удалось создать черновик заказа."
+                        || "Не удалось сохранить реквизиты заказа."
                     );
 
                     updateNextStepState();
-
                     return;
                 }
             }
-
             // -----------------------------------------
             // Шаг 4 → сохраняем отгрузку
             // -----------------------------------------
