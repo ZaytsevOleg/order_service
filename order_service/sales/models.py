@@ -237,6 +237,14 @@ class OrderItem(models.Model):
         decimal_places=2,
         verbose_name="Цена",
     )
+    
+    base_price = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Базовая цена до скидки",
+    )
 
     discount_percent = models.DecimalField(
         max_digits=5,
