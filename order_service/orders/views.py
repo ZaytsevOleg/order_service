@@ -3944,6 +3944,9 @@ def save_draft_promotions(
                     "price":
                         final_price,
 
+                    "base_price":
+                        base_price,
+
                     "discount_percent":
                         applied_discount,
 
