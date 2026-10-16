@@ -443,6 +443,7 @@ class OrderLog(models.Model):
 
 
     EVENT_CREATED = "created"
+    EVENT_UPDATED = "updated"
 
     EVENT_CONFIRM_STARTED = (
         "confirm_started"
@@ -469,6 +470,10 @@ class OrderLog(models.Model):
         (
             EVENT_CREATED,
             "Создание черновика",
+        ),
+        (
+            EVENT_UPDATED,
+            "Обновление черновика",
         ),
         (
             EVENT_CONFIRM_STARTED,
