@@ -897,8 +897,28 @@ document.addEventListener("DOMContentLoaded", function () {
         );
 
 
-        const data =
-            await response.json();
+        const responseText = await response.text();
+
+        let data;
+
+        try {
+            data = JSON.parse(responseText);
+        } catch (error) {
+            console.error("Ответ сервера:", {
+                status: response.status,
+                body: responseText.slice(0, 2000)
+            });
+
+            throw new Error(
+                `Ошибка сервера HTTP ${response.status}. Подробности в логах Django.`
+            );
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || `HTTP ${response.status}`
+            );
+        }
 
 
         if (!response.ok) {
