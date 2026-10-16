@@ -3297,6 +3297,8 @@ def save_draft_items(
 
                 quantity=quantity,
 
+                base_price=base_price,
+
                 price=final_price,
 
                 discount_percent=(
@@ -4111,6 +4113,8 @@ def save_draft_promotions(
                     price=(
                         item["price"]
                     ),
+
+                    base_price=item.get("base_price"),
 
                     discount_percent=(
                         item[
