@@ -3977,12 +3977,67 @@ def save_draft_promotions(
             == PromoAction.REWARD_GIFT
         ):
 
-            for row in (
+            gift_rows = list(
                 promo.gift_products.all()
-            ):
+            )
+
+            gift_product_ids = [
+                row.product_id
+                for row in gift_rows
+            ]
+
+            gift_prices = (
+                Price.objects
+                .filter(
+                    price_type_id=(
+                        access.legal_entity.price_type_id
+                    ),
+                    product_id__in=gift_product_ids,
+                    product__brand_id=contract.brand,
+                    product__is_active=True,
+                )
+            )
+
+            gift_prices_by_product = {
+                str(row.product_id): row
+                for row in gift_prices
+            }
+
+            missing_gift_prices = [
+                row.product.name
+                for row in gift_rows
+                if str(row.product_id)
+                not in gift_prices_by_product
+            ]
+
+            if missing_gift_prices:
+                return JsonResponse(
+                    {
+                        "error": (
+                            "Не найдены цены подарков: "
+                            + ", ".join(missing_gift_prices)
+                        )
+                    },
+                    status=409,
+                )
+            
+
+            for row in gift_rows:
 
                 product = (
                     row.product
+                )
+
+                price_row = gift_prices_by_product[
+                    str(row.product_id)
+                ]
+
+                base_price = (
+                    Decimal(str(price_row.price))
+                    * currency_rate
+                ).quantize(
+                    Decimal("0.01"),
+                    rounding=ROUND_HALF_UP,
                 )
 
                 quantity = (
@@ -4009,6 +4064,8 @@ def save_draft_promotions(
 
                         "price":
                             Decimal("0.00"),
+
+                        "base_price": base_price,
 
                         "discount_percent":
                             Decimal("0.00"),
