@@ -3881,19 +3881,20 @@ def save_draft_promotions(
             )
 
 
-            applied_discount = (
-                customer_discount
-            )
-
-            if (
-                promo.reward_type
-                == PromoAction.REWARD_DISCOUNT
-            ):
+            if promo.reward_type == PromoAction.REWARD_DISCOUNT:
+                # Промо со скидкой: применяется только скидка акции
                 applied_discount = Decimal(
-                    str(
-                        promo.discount_percent
-                        or "0.00"
-                    )
+                    str(promo.discount_percent or "0.00")
+                )
+
+            elif promo.reward_type == PromoAction.REWARD_GIFT:
+                # Промо с подарком: скидка клиента не применяется
+                applied_discount = Decimal("0.00")
+
+            else:
+                return JsonResponse(
+                    {"error": "Неизвестный тип промоакции."},
+                    status=400,
                 )
 
 
