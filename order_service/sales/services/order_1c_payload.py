@@ -8,8 +8,6 @@ ZERO_GUID = "00000000-0000-0000-0000-000000000000"
 CENT = Decimal("0.01")
 HUNDRED = Decimal("100")
 GIFT_DISCOUNT = Decimal("99")
-# Уточнить точность реквизита процента в метаданных конкретной базы 1С.
-PERCENT_PRECISION = Decimal("0.000001")
 
 
 class OrderPayloadError(ValueError):
@@ -126,7 +124,21 @@ def build_order_payload(order):
             if is_paid_promo:
                 paid_by_promo[str(item.promo_id)].append(len(rows))
 
+        raw_percent = GIFT_DISCOUNT if is_gift else decimal_value(
+            item.discount_percent, f"Процент скидки строки {index}"
+        )
+        if raw_percent != raw_percent.to_integral_value():
+            raise OrderPayloadError(
+                f"Процент скидки в строке {index} должен быть целым: {raw_percent}"
+            )
+        if raw_percent < 0 or raw_percent > 100:
+            raise OrderPayloadError(f"Некорректный процент скидки строки {index}")
+        if is_paid_promo and not is_gift and raw_percent == 100:
+            raise OrderPayloadError(f"Платный промо-товар {index} имеет скидку 100%")
+
         rows.append({
+            "percent": int(raw_percent),
+            "original_amount": customer_amount,
             "index": index,
             "item": item,
             "quantity": quantity,
@@ -166,14 +178,16 @@ def build_order_payload(order):
     for row in rows:
         base_total = row["base_total"]
         final_amount = row["final_amount"]
-        discount = base_total - final_amount
+        # Ручная скидка — только исходная скидка строки, без компенсации подарка.
+        # Компенсация уже учтена исключительно в поле "Сумма".
+        discount = (
+            cents(base_total * GIFT_DISCOUNT / HUNDRED)
+            if row["is_gift"]
+            else base_total - row["original_amount"]
+        )
         if final_amount <= 0 or discount < 0:
             raise OrderPayloadError(f"Некорректная сумма после скидки в строке {row['index']}")
-        percent = (discount * HUNDRED / base_total).quantize(
-            PERCENT_PRECISION, rounding=ROUND_HALF_UP
-        )
-        if row["is_gift"]:
-            percent = GIFT_DISCOUNT
+        percent = row["percent"]
         exported_total += final_amount
         products.append({
             "LineNumber": str(row["index"]),
@@ -182,7 +196,7 @@ def build_order_payload(order):
             ),
             "Количество": float(row["quantity"]),
             "Цена": money(row["base_price"]),
-            "ПроцентРучнойСкидки": float(percent),
+            "ПроцентРучнойСкидки": percent,
             "СуммаРучнойСкидки": money(discount),
             "Сумма": money(final_amount),
             "ДатаОтгрузки": shipping_date,
