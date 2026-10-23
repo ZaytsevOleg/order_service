@@ -1,7 +1,10 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django import forms
 from django.core.exceptions import ValidationError
+from django.http import HttpResponseRedirect
+from django.urls import path, reverse
 
+from sales.services.onec_connection import test_onec_connection
 from .models import OneCConnection
 from .services.onec_credentials import (
     encrypt_password,
@@ -138,6 +141,7 @@ class OneCConnectionForm(forms.ModelForm):
 @admin.register(OneCConnection)
 class OneCConnectionAdmin(admin.ModelAdmin):
     form = OneCConnectionForm
+    change_form_template = "admin/sales/onecconnection/change_form.html"
 
     list_display = (
         "name",
@@ -168,3 +172,36 @@ class OneCConnectionAdmin(admin.ModelAdmin):
             },
         ),
     )
+    def get_urls(self):
+        custom_urls = [
+            path(
+                "<int:object_id>/test/",
+                self.admin_site.admin_view(self.test_connection_view),
+                name="sales_onecconnection_test",
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def test_connection_view(self, request, object_id):
+        if request.method != "POST":
+            return HttpResponseRedirect(
+                reverse("admin:sales_onecconnection_change", args=[object_id])
+            )
+
+        connection = self.get_object(request, object_id)
+
+        if connection is None or not self.has_change_permission(request, connection):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+
+        success, message = test_onec_connection(connection)
+
+        self.message_user(
+            request,
+            message,
+            level=messages.SUCCESS if success else messages.ERROR,
+        )
+
+        return HttpResponseRedirect(
+            reverse("admin:sales_onecconnection_change", args=[object_id])
+        )
