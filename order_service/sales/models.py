@@ -574,3 +574,50 @@ class OrderLog(models.Model):
             f" — "
             f"{self.get_event_type_display()}"
         )
+
+
+
+class OneCConnection(models.Model):
+    name = models.CharField(
+        "Название",
+        max_length=150,
+        default="1С УТ — основная база",
+    )
+
+    base_url = models.URLField(
+        "Адрес OData",
+        max_length=500,
+        default=(
+            "http://10.10.2.107/inter_trade11/"
+            "ru/odata/standard.odata"
+        ),
+    )
+
+    username = models.CharField(
+        "Пользователь 1С",
+        max_length=150,
+    )
+
+    encrypted_password = models.TextField(
+        "Зашифрованный пароль",
+        blank=True,
+        editable=False,
+    )
+
+    timeout = models.PositiveIntegerField(
+        "Тайм-аут, секунд",
+        default=30,
+    )
+
+    is_active = models.BooleanField(
+        "Активное подключение",
+        default=True,
+    )
+
+    class Meta:
+        verbose_name = "Подключение к 1С"
+        verbose_name_plural = "Подключения к 1С"
+
+    def __str__(self):
+        return self.name
+    
