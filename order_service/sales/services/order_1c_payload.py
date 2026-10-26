@@ -190,7 +190,7 @@ def build_order_payload(order):
         percent = row["percent"]
         exported_total += final_amount
         products.append({
-            "LineNumber": str(row["index"]),
+            "LineNumber": row["index"],
             "Номенклатура_Key": guid(
                 row["item"].product.product_id, f"Товар {row['index']}"
             ),
