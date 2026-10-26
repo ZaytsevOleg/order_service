@@ -215,6 +215,7 @@ def build_order_payload(order):
 
     return {
         "Posted": False,
+        "НомерПоДаннымКлиента": str(order.id),
         "Партнер_Key": guid(customer.partner_id, "Партнёр"),
         "Контрагент_Key": guid(customer.legal_entity_id, "Контрагент"),
         "Договор_Key": guid(contract.contract_id, "Договор"),
