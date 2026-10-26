@@ -5,6 +5,8 @@ from sales.services.onec_credentials import decrypt_password
 from sales.services.order_1c_payload import build_order_payload
 
 
+
+
 class OneCOrderError(Exception):
     pass
 
@@ -80,20 +82,38 @@ def create_onec_order(order):
     }
 
 
+from urllib.parse import urlencode
+
+
 def find_onec_order(order, connection=None):
     """
-    Ищет заказ в 1С по UUID заказа Django.
-    Ничего не изменяет в 1С.
+    Поиск документа 1С по UUID заказа Django.
+    Только чтение, без изменения данных.
     """
     connection = connection or get_onec_connection()
 
-    url = (
-        connection.base_url.rstrip("/")
-        + "/Document_ЗаказКлиента"
-    )
-
     order_id = str(order.id)
     escaped_id = order_id.replace("'", "''")
+
+    params = {
+        "$format": "json",
+        "$filter": f"НомерПоДаннымКлиента eq '{escaped_id}'",
+        "$select": (
+            "Ref_Key,Number,Date,"
+            "НомерПоДаннымКлиента,Posted"
+        ),
+        "$top": 2,
+    }
+
+    query_string = urlencode(params, quote_via=__import__(
+        "urllib.parse", fromlist=["quote"]
+    ).quote)
+
+    url = (
+        connection.base_url.rstrip("/")
+        + "/Document_ЗаказКлиента?"
+        + query_string
+    )
 
     response = requests.get(
         url,
@@ -101,29 +121,22 @@ def find_onec_order(order, connection=None):
             connection.username,
             decrypt_password(connection.encrypted_password),
         ),
-        params={
-            "$format": "json",
-            "$filter": (
-                f"НомерПоДаннымКлиента eq '{escaped_id}'"
-            ),
-            "$select": (
-                "Ref_Key,Number,Date,"
-                "НомерПоДаннымКлиента,Posted"
-            ),
-            "$top": 2,
-        },
         headers={"Accept": "application/json"},
         timeout=connection.timeout,
     )
 
-    response.raise_for_status()
+    if not response.ok:
+        raise OneCOrderError(
+            f"Ошибка поиска заказа в 1С "
+            f"(HTTP {response.status_code}): "
+            f"{response.text[:1000]}"
+        )
 
     documents = response.json().get("value", [])
 
     if len(documents) > 1:
         raise OneCOrderError(
-            "В 1С найдено несколько документов "
-            f"с идентификатором Django {order_id}"
+            f"В 1С найдено несколько заказов с UUID {order_id}"
         )
 
     return documents[0] if documents else None
