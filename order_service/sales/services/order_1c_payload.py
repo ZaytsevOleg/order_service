@@ -63,6 +63,8 @@ def build_order_payload(order):
         raise OrderPayloadError("В договоре не указан менеджер")
     if not contract.agreement_id:
         raise OrderPayloadError("В договоре не указано соглашение")
+    if not order.warehouse_id:
+        raise OrderPayloadError("В заказе не указан склад отгрузки")
 
     items = list(
         OrderItem.objects.filter(order=order)
@@ -220,6 +222,7 @@ def build_order_payload(order):
         "Контрагент_Key": guid(customer.legal_entity_id, "Контрагент"),
         "Договор_Key": guid(contract.contract_id, "Договор"),
         "Организация_Key": guid(contract.organization_id, "Организация"),
+        "Склад_Key": guid( order.warehouse.warehouse_id, "Склад"),
         "Менеджер_Key": guid(contract.manager.manager_id, "Менеджер"),
         "Соглашение_Key": guid(contract.agreement.agreement_id, "Соглашение"),
         "ДатаОтгрузки": shipping_date,

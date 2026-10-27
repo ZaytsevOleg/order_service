@@ -180,6 +180,15 @@ class Order(models.Model):
         verbose_name="Текущий шаг оформления",
     )
 
+    warehouse = models.ForeignKey(
+        "catalog.Warehouse",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="orders",
+        verbose_name="Склад отгрузки",
+    )
+
     class Meta:
         ordering = ("-created_at",)
         verbose_name = "Заказ"

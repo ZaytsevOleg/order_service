@@ -5371,25 +5371,20 @@ def confirm_order_draft(
             # Финальная запись
             # =================================================
 
-            order.amount = (
-                order_amount
-            )
-
-            order.status = (
-                Order.STATUS_CONFIRMED
-            )
-
+            order.amount = order_amount
+            order.status = Order.STATUS_CONFIRMED
+            order.warehouse = order_warehouse
 
             order.save(
                 update_fields=[
                     "amount",
                     "status",
+                    "warehouse",
                     "delivery_address",
                     "transport_company",
                     "updated_at",
                 ]
             )
-
 
             return JsonResponse(
                 {

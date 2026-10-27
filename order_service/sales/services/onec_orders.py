@@ -67,6 +67,16 @@ def create_onec_order(order):
 
     try:
         data = response.json()
+
+        returned_external_id = data.get("НомерПоДаннымКлиента")
+
+        if returned_external_id != str(order.id):
+            raise OneCOrderError(
+                "1С вернула документ с неожиданным "
+                "номером по данным клиента. "
+                "Проверьте результат отправки вручную."
+            )
+
         ref_key = data["Ref_Key"]
     except (ValueError, KeyError, TypeError) as exc:
         raise OneCOrderError(
