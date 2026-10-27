@@ -1,7 +1,7 @@
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from uuid import UUID
-
+from django.utils import timezone
 from sales.models import OrderItem
 
 ZERO_GUID = "00000000-0000-0000-0000-000000000000"
@@ -79,6 +79,7 @@ def build_order_payload(order):
     paid_by_promo = defaultdict(list)
     gift_compensation = defaultdict(lambda: Decimal("0.00"))
     django_total = Decimal("0.00")
+    document_date = timezone.localtime(timezone.now()).strftime("%Y-%m-%dT%H:%M:%S")
 
     for index, item in enumerate(items, start=1):
         if not item.product_id:
@@ -217,6 +218,7 @@ def build_order_payload(order):
 
     return {
         "Posted": False,
+        "Date": document_date,
         "НомерПоДаннымКлиента": str(order.id),
         "Партнер_Key": guid(customer.partner_id, "Партнёр"),
         "Контрагент_Key": guid(customer.legal_entity_id, "Контрагент"),
