@@ -139,7 +139,8 @@ def order_detail(request, order_id):
         .select_related(
             "customer",
             "contract",
-            "legal_entity__price_type",
+            "price_type",
+            "warehouse",
             "delivery_address",
             "transport_company",
             "user",
