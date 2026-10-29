@@ -198,6 +198,8 @@ def build_order_payload(order):
                 row["item"].product.product_id, f"Товар {row['index']}"
             ),
             "Количество": float(row["quantity"]),
+            "КоличествоУпаковок": float(quantity),
+            "ВидЦены_Key": guid(contract.agreement.price_type_id,"Вид цены"),
             "Цена": money(row["base_price"]),
             "ПроцентРучнойСкидки": percent,
             "СуммаРучнойСкидки": money(discount),
@@ -205,6 +207,14 @@ def build_order_payload(order):
             "ДатаОтгрузки": shipping_date,
             "Отменено": False,
         })
+
+    if (
+        str(order.warehouse.organization_id)
+        != str(contract.organization_id)
+    ):
+        raise OrderPayloadError(
+            "Организация склада не соответствует организации договора"
+        )
 
     if exported_total != django_total:
         raise OrderPayloadError(
@@ -229,5 +239,7 @@ def build_order_payload(order):
         "Соглашение_Key": guid(contract.agreement.agreement_id, "Соглашение"),
         "ДатаОтгрузки": shipping_date,
         "Комментарий": order.comment or "",
+        "СуммаДокумента": money(django_total),
+        "ЦенаВключаетНДС": bool(contract.agreement.price_includes_vat),
         "Товары": products,
     }

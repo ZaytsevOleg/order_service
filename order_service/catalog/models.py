@@ -1294,3 +1294,73 @@ class Manager(models.Model):
     def __str__(self):
         return self.name
 
+
+class Organization(models.Model):
+    organization_id = models.CharField(
+        max_length=36,
+        primary_key=True,
+        verbose_name="GUID организации в 1С",
+    )
+    name = models.CharField(
+        max_length=255,
+        verbose_name="Наименование",
+    )
+    inn = models.CharField(
+        max_length=12,
+        blank=True,
+        verbose_name="ИНН",
+    )
+    deletion_mark = models.BooleanField(
+        default=False,
+        verbose_name="Пометка удаления в 1С",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Разрешена для заказов",
+    )
+
+    class Meta:
+        verbose_name = "Организация"
+        verbose_name_plural = "Организации"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class OrganizationVatSetting(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        related_name="vat_settings",
+        verbose_name="Организация",
+    )
+    vat_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        verbose_name="Ставка НДС, %",
+    )
+    vat_rate_id = models.CharField(
+        max_length=36,
+        verbose_name="GUID ставки НДС в 1С",
+    )
+    valid_from = models.DateField(
+        verbose_name="Действует с",
+    )
+
+    class Meta:
+        verbose_name = "Настройка НДС организации"
+        verbose_name_plural = "Настройки НДС организаций"
+        ordering = ["organization", "-valid_from"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "valid_from"],
+                name="unique_organization_vat_date",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.organization.name}: "
+            f"{self.vat_rate}% с {self.valid_from}"
+        )

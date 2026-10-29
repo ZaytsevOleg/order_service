@@ -18,6 +18,7 @@ from .models import (
     StockBalance,
     Department,
     Manager,    
+    Agreement
 )
 
 
@@ -636,3 +637,44 @@ class ManagerAdmin(admin.ModelAdmin):
     readonly_fields = (
         "manager_id",
     )    
+
+@admin.register(Agreement)
+class AgreementAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "agreement_id",
+        "organization_id",
+        "price_type_id",
+        "price_includes_vat",
+        "is_typical",
+        "is_approved",
+        "is_active",
+    )
+
+    list_filter = (
+        "price_includes_vat",
+        "is_typical",
+        "is_approved",
+        "is_active",
+    )
+
+    search_fields = (
+        "name",
+        "agreement_id",
+        "organization_id",
+        "price_type_id",
+    )
+
+    readonly_fields = (
+        "agreement_id",
+        "name",
+        "is_typical",
+        "counterparty_id",
+        "partner_id",
+        "organization_id",
+        "price_type_id",
+        "status",
+        "is_approved",
+        "operation",
+        "price_includes_vat",
+    )
