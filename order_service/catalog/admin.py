@@ -18,7 +18,9 @@ from .models import (
     StockBalance,
     Department,
     Manager,    
-    Agreement
+    Agreement,
+    Organization, 
+    OrganizationVatSetting
 )
 
 
@@ -678,3 +680,29 @@ class AgreementAdmin(admin.ModelAdmin):
         "operation",
         "price_includes_vat",
     )
+
+
+
+
+@admin.register(Organization)
+class OrganizationAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "inn",
+        "is_active",
+        "deletion_mark",
+    )
+    list_filter = ("is_active", "deletion_mark")
+    search_fields = ("name", "inn", "organization_id")
+    readonly_fields = ("organization_id",)
+
+
+@admin.register(OrganizationVatSetting)
+class OrganizationVatSettingAdmin(admin.ModelAdmin):
+    list_display = (
+        "organization",
+        "vat_rate",
+        "valid_from",
+    )
+    list_filter = ("vat_rate",)
+    search_fields = ("organization__name",)
