@@ -52,9 +52,48 @@ from sales.shipping.shipping_calendar import (
     get_shipping_settings,
     is_working_day,
 )
+from sales.services.onec_order_sync import (
+    sync_order_to_onec,
+)
 import logging
 
 logger = logging.getLogger(__name__)
+
+def sync_confirmed_order_to_onec(order_id):
+    """
+    Отправляет подтверждённый заказ в 1С
+    после фиксации транзакции Django.
+    """
+    try:
+        order = sync_order_to_onec(order_id)
+
+        logger.info(
+            "Заказ %s синхронизирован с 1С: %s",
+            order_id,
+            order.number,
+        )
+
+    except Exception as exc:
+        logger.exception(
+            "Ошибка синхронизации заказа %s с 1С",
+            order_id,
+        )
+
+        try:
+            OrderLog.objects.create(
+                order_id=order_id,
+                event_type="1c_error",
+                level="error",
+                message="Ошибка отправки заказа в 1С",
+                details={
+                    "error": str(exc),
+                },
+            )
+        except Exception:
+            logger.exception(
+                "Не удалось записать ошибку обмена заказа %s",
+                order_id,
+            )
 
 STATUS_ICONS = {
     Order.STATUS_DRAFT: "bi-pencil",
@@ -5385,6 +5424,12 @@ def confirm_order_draft(
                     "transport_company",
                     "updated_at",
                 ]
+            )
+
+            transaction.on_commit(
+                lambda order_id=order.pk: (
+                    sync_confirmed_order_to_onec(order_id)
+                ),
             )
 
             return JsonResponse(
