@@ -3,6 +3,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from uuid import UUID
 from django.utils import timezone
 from sales.models import OrderItem
+from catalog.models import OrganizationVatSetting
 
 ZERO_GUID = "00000000-0000-0000-0000-000000000000"
 CENT = Decimal("0.01")
@@ -65,6 +66,35 @@ def build_order_payload(order):
         raise OrderPayloadError("В договоре не указано соглашение")
     if not order.warehouse_id:
         raise OrderPayloadError("В заказе не указан склад отгрузки")
+
+    agreement = contract.agreement
+
+    vat_setting = (
+        OrganizationVatSetting.objects.filter(
+            organization_id=contract.organization_id,
+            valid_from__lte=timezone.localdate(),
+        )
+        .order_by("-valid_from")
+        .first()
+    )
+
+    if vat_setting is None:
+        raise OrderPayloadError(
+            "Не найдена настройка НДС для организации договора"
+        )
+
+    vat_rate = decimal_value(vat_setting.vat_rate, "Ставка НДС")
+    vat_rate_id = guid(vat_setting.vat_rate_id, "GUID ставки НДС")
+
+    if vat_rate not in (Decimal("5"), Decimal("7")):
+        raise OrderPayloadError(
+            f"Неподдерживаемая ставка НДС: {vat_rate}"
+        )
+
+    if not agreement.price_includes_vat:
+        raise OrderPayloadError(
+            "Расчёт НДС сверх цены пока не реализован"
+        )
 
     items = list(
         OrderItem.objects.filter(order=order)
@@ -192,17 +222,23 @@ def build_order_payload(order):
             raise OrderPayloadError(f"Некорректная сумма после скидки в строке {row['index']}")
         percent = row["percent"]
         exported_total += final_amount
+        vat_amount = cents(
+            final_amount * vat_rate / (HUNDRED + vat_rate)
+        )        
         products.append({
             "LineNumber": row["index"],
             "Номенклатура_Key": guid(
                 row["item"].product.product_id, f"Товар {row['index']}"
             ),
             "Количество": float(row["quantity"]),
-            "КоличествоУпаковок": float(quantity),
+            "КоличествоУпаковок": float(row["quantity"]),
             "ВидЦены_Key": guid(contract.agreement.price_type_id,"Вид цены"),
             "Цена": money(row["base_price"]),
             "ПроцентРучнойСкидки": percent,
             "СуммаРучнойСкидки": money(discount),
+            "СтавкаНДС_Key": vat_rate_id,
+            "СуммаНДС": money(vat_amount),
+            "СуммаСНДС": money(final_amount),
             "Сумма": money(final_amount),
             "ДатаОтгрузки": shipping_date,
             "Отменено": False,
@@ -235,6 +271,7 @@ def build_order_payload(order):
         "Договор_Key": guid(contract.contract_id, "Договор"),
         "Организация_Key": guid(contract.organization_id, "Организация"),
         "Склад_Key": guid( order.warehouse.warehouse_id, "Склад"),
+        "НалогообложениеНДС": "ЛьготноеНалогообложениеНДСНаУСН",
         "Менеджер_Key": guid(contract.manager.manager_id, "Менеджер"),
         "Соглашение_Key": guid(contract.agreement.agreement_id, "Соглашение"),
         "ДатаОтгрузки": shipping_date,
