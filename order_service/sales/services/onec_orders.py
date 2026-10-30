@@ -3,6 +3,10 @@ import requests
 from sales.models import OneCConnection
 from sales.services.onec_credentials import decrypt_password
 from sales.services.order_1c_payload import build_order_payload
+from sales.services.onec_signatories import (
+    get_onec_signatories,
+    OneCSignatoriesError,
+)
 
 
 
@@ -32,6 +36,20 @@ def create_onec_order(order):
 
     connection = get_onec_connection()
     payload = build_order_payload(order)
+
+    # Получаем действующих подписантов организации из 1С.
+    try:
+        signatories = get_onec_signatories(
+            connection=connection,
+            organization_guid=payload["Организация_Key"],
+            document_date=payload["Date"],
+        )
+    except OneCSignatoriesError as exc:
+        raise OneCOrderError(
+            f"Не удалось определить подписантов заказа: {exc}"
+        ) from exc
+
+    payload.update(signatories)
 
     url = (
         connection.base_url.rstrip("/")
