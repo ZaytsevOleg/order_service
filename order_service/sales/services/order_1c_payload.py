@@ -67,6 +67,24 @@ def build_order_payload(order):
     if not order.warehouse_id:
         raise OrderPayloadError("В заказе не указан склад отгрузки")
 
+    if order.onec_shipping_mode == "reserve":
+        onec_status = "КОбеспечению"
+        supply_variant = "СоСклада"
+
+    elif order.onec_shipping_mode == "full_shipment":
+        onec_status = "КОтгрузке"
+        supply_variant = "Отгрузить"
+
+    else:
+        raise OrderPayloadError(
+            f"Неизвестный режим отправки в 1С: {order.onec_shipping_mode}"
+        )
+
+    warehouse_guid = guid(
+        order.warehouse.warehouse_id,
+        "Склад отгрузки",
+    )
+
     agreement = contract.agreement
 
     vat_setting = (
@@ -227,6 +245,9 @@ def build_order_payload(order):
         )        
         products.append({
             "LineNumber": row["index"],
+            "КлючСвязи": str(row["index"]),
+            "Склад_Key": warehouse_guid,
+            "ВариантОбеспечения": supply_variant,
             "Номенклатура_Key": guid(
                 row["item"].product.product_id, f"Товар {row['index']}"
             ),
@@ -265,6 +286,9 @@ def build_order_payload(order):
     return {
         "Posted": False,
         "Date": document_date,
+        "Статус": onec_status,
+        "Согласован": True,
+        "ДатаСогласования": document_date,
         "НомерПоДаннымКлиента": str(order.id),
         "Партнер_Key": guid(customer.partner_id, "Партнёр"),
         "Контрагент_Key": guid(customer.legal_entity_id, "Контрагент"),
@@ -277,6 +301,7 @@ def build_order_payload(order):
         "ДатаОтгрузки": shipping_date,
         "Комментарий": order.comment or "",
         "СуммаДокумента": money(django_total),
+        "НеОтгружатьЧастями": True,
         "ЦенаВключаетНДС": bool(contract.agreement.price_includes_vat),
         "Товары": products,
     }
