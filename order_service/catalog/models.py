@@ -72,6 +72,14 @@ class LegalEntity(models.Model):
         (CLIENT_TYPE_PERSON, "Физическое лицо"),
     ]
 
+    ONEC_MODE_RESERVE = "reserve"
+    ONEC_MODE_FULL_SHIPMENT = "full_shipment"
+
+    ONEC_MODE_CHOICES = [
+        (ONEC_MODE_RESERVE, "Только резерв"),
+        (ONEC_MODE_FULL_SHIPMENT, "Полная отгрузка"),
+    ]
+
     legal_entity_id = models.CharField(
         max_length=255,
         primary_key=True,
@@ -111,6 +119,18 @@ class LegalEntity(models.Model):
         max_length=20,
         choices=CLIENT_TYPE_CHOICES,
         verbose_name="Тип клиента",
+    )
+
+    onec_shipping_mode = models.CharField(
+        max_length=20,
+        choices=ONEC_MODE_CHOICES,
+        default=ONEC_MODE_RESERVE,
+        verbose_name="Режим отправки в 1С",
+        help_text=(
+            "Только резерв — создание и проведение заказа клиента. "
+            "Полная отгрузка — создание и проведение заказа, "
+            "реализации и счёта-фактуры."
+        ),
     )
 
     inn = models.CharField(

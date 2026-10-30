@@ -207,6 +207,7 @@ class LegalEntityAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "client_type",
+        "onec_shipping_mode",
         "inn",
         "kpp",
         "contracts_count",
@@ -217,6 +218,7 @@ class LegalEntityAdmin(admin.ModelAdmin):
 
     list_filter = (
         "client_type",
+        "onec_shipping_mode",
         "is_active",
     )
 
