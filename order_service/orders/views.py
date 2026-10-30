@@ -5414,12 +5414,14 @@ def confirm_order_draft(
             order.amount = order_amount
             order.status = Order.STATUS_CONFIRMED
             order.warehouse = order_warehouse
+            order.onec_shipping_mode = order.customer.onec_shipping_mode
 
             order.save(
                 update_fields=[
                     "amount",
                     "status",
                     "warehouse",
+                    "onec_shipping_mode",
                     "delivery_address",
                     "transport_company",
                     "updated_at",

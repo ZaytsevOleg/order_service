@@ -27,6 +27,14 @@ class Order(models.Model):
         (STATUS_COMPLETED, "Завершен"),
     ]
 
+    ONEC_MODE_RESERVE = "reserve"
+    ONEC_MODE_FULL_SHIPMENT = "full_shipment"
+
+    ONEC_MODE_CHOICES = [
+        (ONEC_MODE_RESERVE, "Только резерв"),
+        (ONEC_MODE_FULL_SHIPMENT, "Полная отгрузка"),
+    ]
+
     PAYMENT_CASH = "cash"
     PAYMENT_CASHLESS = "cashless"
 
@@ -98,6 +106,13 @@ class Order(models.Model):
         choices=STATUS_CHOICES,
         default=STATUS_DRAFT,
         verbose_name="Статус",
+    )
+
+    onec_shipping_mode = models.CharField(
+        max_length=20,
+        choices=ONEC_MODE_CHOICES,
+        default=ONEC_MODE_RESERVE,
+        verbose_name="Режим отправки в 1С",
     )
 
     payment_method = models.CharField(
