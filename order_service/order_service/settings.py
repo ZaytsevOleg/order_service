@@ -290,3 +290,21 @@ LOGGING = {
         },
     },
 }
+
+
+# =====================================================
+# Уведомления о заказах
+# =====================================================
+
+NOTIFY_EMAIL_HOST = os.getenv("NOTIFY_EMAIL_HOST", "")
+NOTIFY_EMAIL_PORT = int(os.getenv("NOTIFY_EMAIL_PORT", "587"))
+NOTIFY_EMAIL_USER = os.getenv("NOTIFY_EMAIL_USER", "")
+NOTIFY_EMAIL_PASSWORD = os.getenv("NOTIFY_EMAIL_PASSWORD", "")
+NOTIFY_EMAIL_USE_TLS = (
+    os.getenv("NOTIFY_EMAIL_USE_TLS", "True").lower() == "true"
+)
+
+NOTIFY_BITRIX_WEBHOOK = os.getenv("NOTIFY_BITRIX_WEBHOOK", "")
+
+ORDER_OPERATOR_EMAIL = os.getenv("ORDER_OPERATOR_EMAIL", "")
+ORDER_OPERATOR_BITRIX_ID = os.getenv("ORDER_OPERATOR_BITRIX_ID", "")
