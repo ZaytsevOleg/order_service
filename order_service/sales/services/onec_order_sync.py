@@ -12,6 +12,7 @@ from sales.services.onec_orders import (
     create_onec_order,
     find_onec_order,
     OneCOrderError,
+    post_onec_order
 )
 
 
@@ -111,14 +112,12 @@ def save_onec_result(order, data):
             data.get("Date") or data.get("date")
         )
         order.sent_to_1c_at = timezone.now()
-        order.status = 3
 
         order.save(update_fields=[
             "one_c_order_id",
             "number",
             "one_c_order_date",
             "sent_to_1c_at",
-            "status",
             "updated_at",
         ])
 
@@ -135,27 +134,56 @@ def save_onec_result(order, data):
 
     return order
 
-
 def sync_order_to_onec(order_id):
     """
-    Синхронизирует один заказ Django с 1С.
+    Синхронизирует заказ Django с 1С.
+    Создаёт документ при необходимости и проводит его.
     """
     with order_sync_lock(order_id):
         order = Order.objects.get(pk=order_id)
 
         if order.one_c_order_id:
+            ref_key = str(order.one_c_order_id)
+
+        else:
+            existing = find_onec_order(order)
+
+            if existing:
+                order = save_onec_result(order, existing)
+            else:
+                result = create_onec_order(order)
+                order = save_onec_result(order, result)
+
+            ref_key = str(order.one_c_order_id)
+
+        # Проводим заказ клиента.
+        result = post_onec_order(ref_key)
+
+        if not result.get("posted"):
             raise OrderSyncError(
-                "Заказ уже отправлен в 1С"
+                "1С не подтвердила проведение заказа клиента"
             )
 
-        # Проверяем, не был ли документ создан
-        # при предыдущей попытке отправки.
-        existing = find_onec_order(order)
+        if order.onec_shipping_mode == Order.ONEC_MODE_RESERVE:
+            # Пока только фиксируем завершение проведения.
+            # Уведомление оператору подключим отдельно.
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(pk=order_id)
 
-        if existing:
-            return save_onec_result(order, existing)
+                if order.status == Order.STATUS_DRAFT:
+                    order.status = Order.STATUS_APPROVAL
+                    order.save(update_fields=["status", "updated_at"])
 
-        # Создаём новый документ.
-        result = create_onec_order(order)
+        elif order.onec_shipping_mode == Order.ONEC_MODE_FULL_SHIPMENT:
+            # Реализацию и счёт-фактуру добавим следующим этапом.
+            # Статус 3 пока не устанавливаем.
+            pass
 
-        return save_onec_result(order, result)
+        else:
+            raise OrderSyncError(
+                f"Неизвестный режим отправки: {order.onec_shipping_mode}"
+            )
+
+        return result
+
+    
