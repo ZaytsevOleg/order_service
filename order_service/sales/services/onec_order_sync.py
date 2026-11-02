@@ -14,7 +14,13 @@ from sales.services.onec_orders import (
     OneCOrderError,
     post_onec_order
 )
+import logging
 
+from sales.services.notifications.order_notifications import (
+    enqueue_order_notifications,
+)
+
+logger = logging.getLogger(__name__)
 
 class OrderSyncError(Exception):
     pass
@@ -165,14 +171,36 @@ def sync_order_to_onec(order_id):
             )
 
         if order.onec_shipping_mode == Order.ONEC_MODE_RESERVE:
-            # Пока только фиксируем завершение проведения.
-            # Уведомление оператору подключим отдельно.
+
             with transaction.atomic():
                 order = Order.objects.select_for_update().get(pk=order_id)
 
                 if order.status == Order.STATUS_DRAFT:
                     order.status = Order.STATUS_APPROVAL
                     order.save(update_fields=["status", "updated_at"])
+
+            # Документ успешно проведён в 1С.
+            # Создаём задания для отправки уведомлений.
+            try:
+                order = Order.objects.select_related(
+                    "contract__manager"
+                ).get(pk=order_id)
+
+                created_count = enqueue_order_notifications(order)
+
+                logger.info(
+                    "Заказ %s: создано уведомлений %s",
+                    order.number,
+                    created_count,
+                )
+
+            except Exception:
+                # Ошибка очереди не должна превращать
+                # успешное проведение документа в ошибку синхронизации.
+                logger.exception(
+                    "Не удалось создать уведомления для заказа %s",
+                    order_id,
+                )
 
         elif order.onec_shipping_mode == Order.ONEC_MODE_FULL_SHIPMENT:
             # Реализацию и счёт-фактуру добавим следующим этапом.
