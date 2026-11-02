@@ -184,6 +184,6 @@ def sync_order_to_onec(order_id):
                 f"Неизвестный режим отправки: {order.onec_shipping_mode}"
             )
 
-        return result
+        return Order.objects.get(pk=order_id)
 
     

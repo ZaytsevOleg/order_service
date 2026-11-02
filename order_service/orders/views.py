@@ -5412,7 +5412,7 @@ def confirm_order_draft(
             # =================================================
 
             order.amount = order_amount
-            order.status = Order.STATUS_CONFIRMED
+            order.status = Order.STATUS_APPROVAL
             order.warehouse = order_warehouse
             order.onec_shipping_mode = order.customer.onec_shipping_mode
 
