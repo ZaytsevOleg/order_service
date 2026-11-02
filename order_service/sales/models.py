@@ -644,4 +644,96 @@ class OneCConnection(models.Model):
 
     def __str__(self):
         return self.name
-    
+
+
+from django.db import models
+
+
+class OrderNotification(models.Model):
+
+    CHANNEL_EMAIL = "email"
+    CHANNEL_BITRIX = "bitrix"
+
+    CHANNEL_CHOICES = [
+        (CHANNEL_EMAIL, "Email"),
+        (CHANNEL_BITRIX, "Bitrix24"),
+    ]
+
+    RECIPIENT_MANAGER = "manager"
+    RECIPIENT_OPERATOR = "operator"
+
+    RECIPIENT_CHOICES = [
+        (RECIPIENT_MANAGER, "Менеджер"),
+        (RECIPIENT_OPERATOR, "Оператор"),
+    ]
+
+    STATUS_PENDING = "pending"
+    STATUS_SENT = "sent"
+    STATUS_FAILED = "failed"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Ожидает"),
+        (STATUS_SENT, "Отправлено"),
+        (STATUS_FAILED, "Ошибка"),
+    ]
+
+    order = models.ForeignKey(
+        "sales.Order",
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+
+    recipient_type = models.CharField(
+        max_length=20,
+        choices=RECIPIENT_CHOICES,
+    )
+
+    recipient = models.CharField(
+        max_length=255,
+    )
+
+    channel = models.CharField(
+        max_length=10,
+        choices=CHANNEL_CHOICES,
+    )
+
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+
+    attempts = models.PositiveIntegerField(default=0)
+
+    last_error = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        verbose_name = "Уведомление о заказе"
+        verbose_name_plural = "Уведомления о заказах"
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "order",
+                    "recipient_type",
+                    "channel",
+                ],
+                name="unique_order_notification",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.order_id} | "
+            f"{self.recipient_type} | "
+            f"{self.channel} | "
+            f"{self.status}"
+        )    
