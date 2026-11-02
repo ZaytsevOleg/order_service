@@ -668,11 +668,14 @@ class OrderNotification(models.Model):
     ]
 
     STATUS_PENDING = "pending"
+    STATUS_PROCESSING = "processing"
     STATUS_SENT = "sent"
     STATUS_FAILED = "failed"
+    
 
     STATUS_CHOICES = [
         (STATUS_PENDING, "Ожидает"),
+        (STATUS_PROCESSING, "Обрабатывается"),
         (STATUS_SENT, "Отправлено"),
         (STATUS_FAILED, "Ошибка"),
     ]
@@ -702,6 +705,11 @@ class OrderNotification(models.Model):
         choices=STATUS_CHOICES,
         default=STATUS_PENDING,
         db_index=True,
+    )
+
+    processing_started_at = models.DateTimeField(
+        null=True,
+        blank=True,
     )
 
     attempts = models.PositiveIntegerField(default=0)
