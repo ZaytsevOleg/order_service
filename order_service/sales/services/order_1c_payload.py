@@ -288,6 +288,7 @@ def build_order_payload(order):
         "Date": document_date,
         "Статус": onec_status,
         "Согласован": True,
+        "СкидкиРассчитаны": True,
         "ДатаСогласования": document_date,
         "НомерПоДаннымКлиента": str(order.id),
         "Партнер_Key": guid(customer.partner_id, "Партнёр"),

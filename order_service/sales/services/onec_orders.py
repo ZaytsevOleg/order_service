@@ -168,3 +168,103 @@ def find_onec_order(order, connection=None):
         )
 
     return documents[0] if documents else None
+
+
+def post_onec_order(ref_key):
+    """
+    Проводит существующий заказ клиента в 1С.
+    Перед проведением проверяет его состояние.
+    После проведения повторно читает документ.
+    """
+    from decimal import Decimal
+    from uuid import UUID
+
+    try:
+        ref_key = str(UUID(str(ref_key)))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise OneCOrderError("Некорректный Ref_Key заказа 1С") from exc
+
+    connection = get_onec_connection()
+
+    auth = (
+        connection.username,
+        decrypt_password(connection.encrypted_password),
+    )
+
+    url = (
+        connection.base_url.rstrip("/")
+        + f"/Document_ЗаказКлиента(guid'{ref_key}')"
+    )
+
+    def get_document():
+        try:
+            response = requests.get(
+                url,
+                params={"$format": "json"},
+                auth=auth,
+                headers={"Accept": "application/json"},
+                timeout=connection.timeout,
+            )
+            response.raise_for_status()
+            return response.json()
+        except (requests.exceptions.RequestException, ValueError) as exc:
+            raise OneCOrderError(
+                f"Не удалось получить заказ 1С {ref_key}: {exc}"
+            ) from exc
+
+    document = get_document()
+
+    if document.get("Posted") is True:
+        return {
+            "ref_key": ref_key,
+            "number": document.get("Number"),
+            "posted": True,
+            "already_posted": True,
+        }
+
+    if document.get("СкидкиРассчитаны") is not True:
+        raise OneCOrderError(
+            "Нельзя провести заказ: СкидкиРассчитаны = False"
+        )
+
+    original_amount = Decimal(str(document["СуммаДокумента"]))
+
+    try:
+        response = requests.post(
+            url + "/Post",
+            params={"$format": "json"},
+            json={"PostingMode": "NonOperational"},
+            auth=auth,
+            headers={"Accept": "application/json"},
+            timeout=connection.timeout,
+        )
+    except requests.exceptions.RequestException as exc:
+        raise OneCOrderError(
+            "Не удалось получить подтверждение проведения заказа. "
+            "Необходимо проверить состояние документа в 1С."
+        ) from exc
+
+    # Даже после HTTP 500 проверяем фактическое состояние документа.
+    result = get_document()
+
+    if result.get("Posted") is not True:
+        raise OneCOrderError(
+            f"Заказ не проведён. HTTP {response.status_code}: "
+            f"{response.text[:1000]}"
+        )
+
+    if Decimal(str(result["СуммаДокумента"])) != original_amount:
+        raise OneCOrderError(
+            "Заказ проведён, но сумма документа изменилась! "
+            "Требуется проверка в 1С."
+        )
+
+    return {
+        "ref_key": ref_key,
+        "number": result.get("Number"),
+        "date": result.get("Date"),
+        "posted": True,
+        "agreed": result.get("Согласован"),
+        "amount": str(result["СуммаДокумента"]),
+        "already_posted": False,
+    }
