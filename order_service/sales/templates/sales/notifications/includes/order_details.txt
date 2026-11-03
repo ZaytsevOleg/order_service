@@ -1,6 +1,6 @@
 Номер заказа: {{ order.number }}
-Дата документа: {{ order.one_c_order_date|date:"d.m.Y" }}
+Дата документа: {{ order.one_c_order_date|date:"j E Y" }} года
 Клиент: {{ client_name }}
 Сумма заказа: {{ order.amount|floatformat:2 }} руб.
-Дата отгрузки: {{ order.shipping_date|date:"d.m.Y" }}
+Дата отгрузки: {{ order.shipping_date|date:"j E Y" }} года
 Тип отгрузки: {{ order.get_shipping_type_display }}
