@@ -8,6 +8,9 @@ from django.utils import timezone
 from sales.models import OrderNotification, OrderLog
 from sales.services.notifications.email_sender import send_email
 from sales.services.notifications.bitrix_sender import send_bitrix_message
+from sales.services.notifications.renderer import (
+    render_order_notification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,17 +56,6 @@ def claim_notification(order_id=None):
             "status", "processing_started_at", "attempts",
         ])
         return notification.pk, notification.attempts
-
-
-def build_notification_message(notification):
-    order = notification.order
-    subject = f"Новый заказ {order.number}"
-    message = (
-        f"Новый заказ клиента: {order.number}\n"
-        "Заказ успешно проведён в 1С.\n"
-        "Статус: На согласовании.\n"
-    )
-    return subject, message
 
 
 def _record_result(notification, claimed_attempt, error=None):
@@ -135,7 +127,7 @@ def process_one_notification(order_id=None):
     )
 
     try:
-        subject, message = build_notification_message(notification)
+        subject, message = render_order_notification(notification)
         if notification.channel == OrderNotification.CHANNEL_EMAIL:
             send_email(
                 to_email=notification.recipient,

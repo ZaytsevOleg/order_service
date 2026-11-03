@@ -1,5 +1,5 @@
 from django.template.loader import render_to_string
-
+import re
 from sales.models import Order
 
 
@@ -30,6 +30,10 @@ def render_order_notification(notification):
     message = render_to_string(
         template_name,
         {"order": order},
-    ).strip()
+    )
+
+    # Убираем последовательности из трёх и более переносов строк.
+    
+    message = re.sub(r"\n{3,}", "\n\n", message).strip()
 
     return subject, message
