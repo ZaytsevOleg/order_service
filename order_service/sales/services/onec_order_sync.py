@@ -19,6 +19,9 @@ import logging
 from sales.services.notifications.order_notifications import (
     enqueue_order_notifications,
 )
+from sales.services.notifications.processor import (
+    process_order_notifications,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +195,17 @@ def sync_order_to_onec(order_id):
                     "Заказ %s: создано уведомлений %s",
                     order.number,
                     created_count,
+                )
+
+                processed_count = process_order_notifications(
+                    order_id=order.pk,
+                    limit=4,
+                )
+
+                logger.info(
+                    "Заказ %s: обработано уведомлений %s",
+                    order.number,
+                    processed_count,
                 )
 
             except Exception:
