@@ -5,7 +5,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from sales.models import OrderNotification
+from sales.models import OrderNotification, OrderLog
 from sales.services.notifications.email_sender import send_email
 from sales.services.notifications.bitrix_sender import send_bitrix_message
 
@@ -17,7 +17,7 @@ RETRY_DELAY_MINUTES = 5
 PROCESSING_TIMEOUT_MINUTES = 10
 
 
-def claim_notification():
+def claim_notification(order_id=None):
     """Атомарно забирает одно доступное уведомление."""
 
     now = timezone.now()
@@ -129,6 +129,25 @@ def process_one_notification():
             processing_started_at=timezone.now(),
         )
 
+        OrderLog.objects.create(
+            order=notification.order,
+            event_type=OrderLog.EVENT_NOTIFICATION_ERROR,
+            level=OrderLog.LEVEL_ERROR,
+            message=(
+                f"Ошибка отправки уведомления: "
+                f"{notification.get_recipient_type_display()}, "
+                f"{notification.get_channel_display()}"
+            ),
+            details={
+                "notification_id": notification.pk,
+                "recipient_type": notification.recipient_type,
+                "channel": notification.channel,
+                "recipient": notification.recipient,
+                "attempts": notification.attempts,
+                "error": str(exc)[:2000],
+            },
+        )
+
     else:
         OrderNotification.objects.filter(
             pk=notification.pk,
@@ -143,6 +162,24 @@ def process_one_notification():
         logger.info(
             "Уведомление ID=%s отправлено",
             notification.pk,
+        )
+
+        OrderLog.objects.create(
+            order=notification.order,
+            event_type=OrderLog.EVENT_NOTIFICATION_SENT,
+            level=OrderLog.LEVEL_SUCCESS,
+            message=(
+                f"Уведомление отправлено: "
+                f"{notification.get_recipient_type_display()}, "
+                f"{notification.get_channel_display()}"
+            ),
+            details={
+                "notification_id": notification.pk,
+                "recipient_type": notification.recipient_type,
+                "channel": notification.channel,
+                "recipient": notification.recipient,
+                "attempts": notification.attempts,
+            },
         )
 
     return True

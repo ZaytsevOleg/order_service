@@ -476,6 +476,8 @@ class OrderLog(models.Model):
 
     EVENT_CREATED = "created"
     EVENT_UPDATED = "updated"
+    EVENT_NOTIFICATION_SENT = "notification_sent"
+    EVENT_NOTIFICATION_ERROR = "notification_error"
 
     EVENT_CONFIRM_STARTED = (
         "confirm_started"
@@ -526,6 +528,14 @@ class OrderLog(models.Model):
         (
             EVENT_STATUS_CHANGED,
             "Изменение статуса",
+        ),
+        (
+            EVENT_NOTIFICATION_SENT, 
+            "Уведомление отправлено"
+        ),
+        (
+            EVENT_NOTIFICATION_ERROR, 
+            "Ошибка отправки уведомления"
         ),
     ]
 
