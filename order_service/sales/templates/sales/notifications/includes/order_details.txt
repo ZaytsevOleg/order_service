@@ -1,10 +1,8 @@
-{% load humanize %}
-
 {% autoescape off %}
 Номер заказа: {{ order.number }}
 Дата документа: {{ order.one_c_order_date|date:"j E Y" }} года
 Клиент: {{ order.customer.name }}
-Сумма заказа: {{ order.amount|floatformat:2|intcomma }} руб.
+Сумма заказа: {{ order.amount|floatformat:"2g" }} руб.
 Дата отгрузки: {{ order.shipping_date|date:"j E Y" }} года
 Тип отгрузки: {{ order.get_shipping_type_display }}
 {% if order.comment %}
