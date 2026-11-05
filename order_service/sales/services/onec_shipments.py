@@ -255,8 +255,10 @@ def build_shipment_payload(order):
 
 def find_onec_shipments(order_ref):
     """
-    Ищет реализации по Ref_Key заказа клиента.
-    Только GET, без изменений данных.
+    Ищет реализации по заказу клиента через OData.
+
+    Фильтрация выполняется на стороне 1С.
+    Только чтение.
     """
     from uuid import UUID
 
@@ -277,11 +279,14 @@ def find_onec_shipments(order_ref):
     params = {
         "$format": "json",
         "$filter": (
-            f"ЗаказКлиента eq guid'{order_ref}'"
+            "ЗаказКлиента eq "
+            f"cast(guid'{order_ref}',"
+            "'Document_ЗаказКлиента')"
         ),
         "$select": (
             "Ref_Key,Number,Date,Posted,"
-            "ЗаказКлиента,СуммаДокумента,Статус"
+            "ЗаказКлиента,ЗаказКлиента_Type,"
+            "СуммаДокумента,Статус"
         ),
         "$top": 100,
     }
@@ -297,10 +302,39 @@ def find_onec_shipments(order_ref):
             headers={"Accept": "application/json"},
             timeout=connection.timeout,
         )
-        response.raise_for_status()
-        return response.json().get("value", [])
+
+        if not response.ok:
+            raise OneCShipmentError(
+                f"Ошибка поиска реализаций "
+                f"HTTP {response.status_code}: "
+                f"{response.text[:1500]}"
+            )
+
+        documents = response.json().get("value", [])
 
     except (requests.RequestException, ValueError) as exc:
         raise OneCShipmentError(
             f"Ошибка поиска реализаций: {exc}"
         ) from exc
+
+    # Защита от неожиданного результата OData.
+    for document in documents:
+        if (
+            str(document.get("ЗаказКлиента", "")).lower()
+            != order_ref
+            or document.get("ЗаказКлиента_Type")
+            != "StandardODATA.Document_ЗаказКлиента"
+        ):
+            raise OneCShipmentError(
+                "1С вернула реализацию другого заказа"
+            )
+
+    # Если результатов 100, выборка может быть неполной.
+    # Не разрешаем на её основании создавать новый документ.
+    if len(documents) == 100:
+        raise OneCShipmentError(
+            "Достигнут лимит выборки реализаций. "
+            "Необходимо проверить полноту результата."
+        )
+
+    return documents
