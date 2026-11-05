@@ -247,8 +247,60 @@ def build_shipment_payload(order):
         "СпособДоставки": order["СпособДоставки"],
         "АдресДоставки": order.get("АдресДоставки", ""),
         "Комментарий": comment,
-        "Статус": "Отгружено",
+        "Статус": "КОтгрузке",
         "Товары": items,
     }
 
     return payload
+
+def find_onec_shipments(order_ref):
+    """
+    Ищет реализации по Ref_Key заказа клиента.
+    Только GET, без изменений данных.
+    """
+    from uuid import UUID
+
+    try:
+        order_ref = str(UUID(str(order_ref)))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise OneCShipmentError(
+            "Некорректный Ref_Key заказа"
+        ) from exc
+
+    connection = get_onec_connection()
+
+    url = (
+        connection.base_url.rstrip("/")
+        + "/Document_РеализацияТоваровУслуг"
+    )
+
+    params = {
+        "$format": "json",
+        "$filter": (
+            f"ЗаказКлиента eq guid'{order_ref}'"
+        ),
+        "$select": (
+            "Ref_Key,Number,Date,Posted,"
+            "ЗаказКлиента,СуммаДокумента,Статус"
+        ),
+        "$top": 100,
+    }
+
+    try:
+        response = requests.get(
+            url,
+            params=params,
+            auth=(
+                connection.username,
+                decrypt_password(connection.encrypted_password),
+            ),
+            headers={"Accept": "application/json"},
+            timeout=connection.timeout,
+        )
+        response.raise_for_status()
+        return response.json().get("value", [])
+
+    except (requests.RequestException, ValueError) as exc:
+        raise OneCShipmentError(
+            f"Ошибка поиска реализаций: {exc}"
+        ) from exc
