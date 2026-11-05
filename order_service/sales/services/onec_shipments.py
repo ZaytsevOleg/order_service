@@ -123,3 +123,132 @@ def inspect_onec_order_for_shipment(ref_key):
         "items_count": len(items),
         "items": items,
     }
+
+
+from datetime import datetime
+from decimal import Decimal
+
+
+def build_shipment_payload(order):
+    """
+    Формирует JSON реализации на основании заказа 1С.
+    Не выполняет запросов на создание документа.
+    """
+
+    if order.get("Posted") is not True:
+        raise OneCShipmentError("Заказ не проведён")
+
+    if order.get("Согласован") is not True:
+        raise OneCShipmentError("Заказ не согласован")
+
+    if order.get("Статус") != "КОтгрузке":
+        raise OneCShipmentError(
+            f"Некорректный статус заказа: {order.get('Статус')}"
+        )
+
+    order_ref = order["Ref_Key"]
+
+    # Для документа используем текущую дату.
+    document_date = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+    shipping_date = datetime.fromisoformat(
+        order["ДатаОтгрузки"]
+    ).strftime("%d.%m.%Y")
+
+    comment = (
+        f"Отгрузка: {shipping_date} "
+        f"{order.get('Комментарий', '')}"
+    ).strip()
+
+    items = []
+
+    for item in order["Товары"]:
+        if item.get("Отменено", False):
+            continue
+
+        if item.get("ВариантОбеспечения") != "Отгрузить":
+            raise OneCShipmentError(
+                f"Строка {item['LineNumber']} не предназначена "
+                "для отгрузки"
+            )
+
+        shipment_item = {
+            "LineNumber": item["LineNumber"],
+            "Номенклатура_Key": item["Номенклатура_Key"],
+            "Характеристика_Key": item["Характеристика_Key"],
+            "Упаковка_Key": item["Упаковка_Key"],
+            "Количество": item["Количество"],
+            "КоличествоУпаковок": item["КоличествоУпаковок"],
+            "ВидЦены_Key": item["ВидЦены_Key"],
+            "Цена": item["Цена"],
+            "Сумма": item["Сумма"],
+            "СуммаСНДС": item["СуммаСНДС"],
+            "СтавкаНДС_Key": item["СтавкаНДС_Key"],
+            "СуммаНДС": item["СуммаНДС"],
+            "КодСтроки": item["КодСтроки"],
+            "КлючСвязи": item["КлючСвязи"],
+            "СуммаРучнойСкидки": item["СуммаРучнойСкидки"],
+            "СуммаАвтоматическойСкидки": item[
+                "СуммаАвтоматическойСкидки"
+            ],
+            "ПроцентРучнойСкидки": item[
+                "ПроцентРучнойСкидки"
+            ],
+            "ПроцентАвтоматическойСкидки": item[
+                "ПроцентАвтоматическойСкидки"
+            ],
+            "Склад_Key": item["Склад_Key"],
+            "ЗаказКлиента": order_ref,
+            "ЗаказКлиента_Type": (
+                "StandardODATA.Document_ЗаказКлиента"
+            ),
+            "СуммаВзаиморасчетов": item["СуммаСНДС"],
+        }
+
+        items.append(shipment_item)
+
+    items_amount = sum(
+        (Decimal(str(item["СуммаСНДС"])) for item in items),
+        Decimal("0"),
+    )
+
+    document_amount = Decimal(str(order["СуммаДокумента"]))
+
+    if items_amount != document_amount:
+        raise OneCShipmentError(
+            "Сумма товарных строк не совпадает с суммой заказа"
+        )
+
+    payload = {
+        "Date": document_date,
+        "Posted": False,
+        "ЗаказКлиента": order_ref,
+        "ЗаказКлиента_Type": (
+            "StandardODATA.Document_ЗаказКлиента"
+        ),
+        "РеализацияПоЗаказам": True,
+        "Организация_Key": order["Организация_Key"],
+        "Контрагент_Key": order["Контрагент_Key"],
+        "Партнер_Key": order["Партнер_Key"],
+        "Договор_Key": order["Договор_Key"],
+        "Соглашение_Key": order["Соглашение_Key"],
+        "Менеджер_Key": order["Менеджер_Key"],
+        "Подразделение_Key": order["Подразделение_Key"],
+        "Склад_Key": order["Склад_Key"],
+        "Валюта_Key": order["Валюта_Key"],
+        "ВалютаВзаиморасчетов_Key": order["Валюта_Key"],
+        "ХозяйственнаяОперация": order["ХозяйственнаяОперация"],
+        "НалогообложениеНДС": order["НалогообложениеНДС"],
+        "ЦенаВключаетНДС": order["ЦенаВключаетНДС"],
+        "СкидкиРассчитаны": True,
+        "СуммаДокумента": float(document_amount),
+        "СуммаВзаиморасчетов": float(document_amount),
+        "ПорядокРасчетов": order["ПорядокРасчетов"],
+        "СпособДоставки": order["СпособДоставки"],
+        "АдресДоставки": order.get("АдресДоставки", ""),
+        "Комментарий": comment,
+        "Статус": "Отгружено",
+        "Товары": items,
+    }
+
+    return payload
