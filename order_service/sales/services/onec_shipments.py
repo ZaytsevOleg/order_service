@@ -321,3 +321,97 @@ def find_onec_shipments(order_ref):
         )
 
     return documents
+
+
+def create_onec_shipment(order_ref):
+    """
+    Создаёт непроведённую реализацию по заказу клиента.
+
+    ВНИМАНИЕ: выполняет реальный POST в 1С.
+    """
+
+    # Проверяем, не существует ли реализация.
+    existing = find_onec_shipments(order_ref)
+
+    if existing:
+        raise OneCShipmentError(
+            "По заказу уже существует реализация: "
+            + ", ".join(
+                doc.get("Number", doc["Ref_Key"])
+                for doc in existing
+            )
+        )
+
+    # Получаем заказ из 1С.
+    order = get_onec_order_for_shipment(order_ref)
+
+    # Формируем документ.
+    payload = build_shipment_payload(order)
+
+    connection = get_onec_connection()
+
+    url = (
+        connection.base_url.rstrip("/")
+        + "/Document_РеализацияТоваровУслуг"
+    )
+
+    try:
+        response = requests.post(
+            url,
+            json=payload,
+            auth=(
+                connection.username,
+                decrypt_password(connection.encrypted_password),
+            ),
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            timeout=connection.timeout,
+        )
+
+    except requests.RequestException as exc:
+        raise OneCShipmentError(
+            "Не удалось получить подтверждение создания реализации. "
+            "Перед повторной отправкой необходимо проверить "
+            "существование документа в 1С."
+        ) from exc
+
+    if not response.ok:
+        raise OneCShipmentError(
+            f"Ошибка создания реализации "
+            f"HTTP {response.status_code}: "
+            f"{response.text[:2000]}"
+        )
+
+    try:
+        data = response.json()
+        ref_key = data["Ref_Key"]
+
+    except (ValueError, KeyError, TypeError) as exc:
+        raise OneCShipmentError(
+            "1С ответила успешно, но не вернула Ref_Key. "
+            "Необходимо проверить документ в 1С."
+        ) from exc
+
+    if (
+        str(data.get("ЗаказКлиента", "")).lower()
+        != str(order_ref).lower()
+    ):
+        raise OneCShipmentError(
+            "Созданная реализация ссылается на другой заказ. "
+            "Требуется проверка в 1С."
+        )
+
+    return {
+        "ref_key": ref_key,
+        "number": data.get("Number"),
+        "posted": data.get("Posted"),
+        "status": data.get("Статус"),
+        "amount": data.get("СуммаДокумента"),
+        "items_count": len(data.get("Товары", [])),
+        "stock_types_count": len(data.get("ВидыЗапасов", [])),
+        "payment_schedule_count": len(
+            data.get("ЭтапыГрафикаОплаты", [])
+        ),
+    }
