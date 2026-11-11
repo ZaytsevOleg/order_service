@@ -255,10 +255,9 @@ def build_shipment_payload(order):
 
 def find_onec_shipments(order_ref):
     """
-    Ищет реализации по заказу клиента через OData.
-
+    Поиск реализаций по заказу клиента через OData.
     Фильтрация выполняется на стороне 1С.
-    Только чтение.
+    Только GET.
     """
     from uuid import UUID
 
@@ -274,27 +273,14 @@ def find_onec_shipments(order_ref):
     url = (
         connection.base_url.rstrip("/")
         + "/Document_РеализацияТоваровУслуг"
+        + "?&$format=json"
+        + "&$filter=ЗаказКлиента eq "
+        + f"cast(guid'{order_ref}','Document_ЗаказКлиента')"
     )
-
-    params = {
-        "$format": "json",
-        "$filter": (
-            "ЗаказКлиента eq "
-            f"cast(guid'{order_ref}',"
-            "'Document_ЗаказКлиента')" 
-        ),
-        "$select": (
-            "Ref_Key,Number,Date,Posted,"
-            "ЗаказКлиента,ЗаказКлиента_Type,"
-            "СуммаДокумента,Статус"
-        ),
-        "$top": 100,
-    }
 
     try:
         response = requests.get(
             url,
-            params=params,
             auth=(
                 connection.username,
                 decrypt_password(connection.encrypted_password),
@@ -310,14 +296,14 @@ def find_onec_shipments(order_ref):
                 f"{response.text[:1500]}"
             )
 
-        documents = response.json().get("value", [])
+        data = response.json()
+        documents = data.get("value", [])
 
     except (requests.RequestException, ValueError) as exc:
         raise OneCShipmentError(
             f"Ошибка поиска реализаций: {exc}"
         ) from exc
 
-    # Защита от неожиданного результата OData.
     for document in documents:
         if (
             str(document.get("ЗаказКлиента", "")).lower()
@@ -329,12 +315,9 @@ def find_onec_shipments(order_ref):
                 "1С вернула реализацию другого заказа"
             )
 
-    # Если результатов 100, выборка может быть неполной.
-    # Не разрешаем на её основании создавать новый документ.
-    if len(documents) == 100:
+    if data.get("odata.nextLink") or data.get("@odata.nextLink"):
         raise OneCShipmentError(
-            "Достигнут лимит выборки реализаций. "
-            "Необходимо проверить полноту результата."
+            "Результат поиска неполный: обнаружена следующая страница OData"
         )
 
     return documents
