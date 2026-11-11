@@ -281,7 +281,7 @@ def find_onec_shipments(order_ref):
         "$filter": (
             "ЗаказКлиента eq "
             f"cast(guid'{order_ref}',"
-            "'Document_ЗаказКлиента')"
+            "'Document_ЗаказКлиента')" 
         ),
         "$select": (
             "Ref_Key,Number,Date,Posted,"
