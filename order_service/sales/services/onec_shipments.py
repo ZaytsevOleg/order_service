@@ -331,7 +331,11 @@ def create_onec_shipment(order_ref):
     """
 
     # Проверяем, не существует ли реализация.
-    existing = find_onec_shipments(order_ref)
+    existing = [
+        doc
+        for doc in find_onec_shipments(order_ref)
+        if not doc.get("DeletionMark", False)
+    ]
 
     if existing:
         raise OneCShipmentError(
