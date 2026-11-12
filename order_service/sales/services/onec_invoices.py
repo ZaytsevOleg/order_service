@@ -76,9 +76,14 @@ def get_onec_shipment_for_invoice(shipment_ref):
 
 
 def find_onec_invoices(shipment_ref):
-    """Найти счета-фактуры по ссылке на реализацию."""
+    """Найти счета-фактуры по реализации."""
+
+    from urllib.parse import quote
+    from uuid import UUID
 
     session, base_url, timeout = _get_odata_session()
+
+    shipment_ref = str(UUID(shipment_ref))
 
     filter_value = (
         "ДокументОснование eq "
@@ -86,14 +91,31 @@ def find_onec_invoices(shipment_ref):
         "'Document_РеализацияТоваровУслуг')"
     )
 
+    # Кодируем только кириллицу и пробелы,
+    # сохраняя синтаксис cast(guid'...', '...')
+    encoded_filter = quote(
+        filter_value,
+        safe="()',_-",
+    )
+
+    url = (
+        f"{base_url}/{INVOICE_ENTITY}"
+        f"?$format=json"
+        f"&$top=5"
+        f"&$filter={encoded_filter}"
+    )
+
     response = session.get(
-        f"{base_url}/{INVOICE_ENTITY}",
-        params={
-            "$format": "json",
-            "$filter": filter_value,
-        },
+        url,
         timeout=timeout,
     )
+
+    print("OData URL:", response.url)
+    print("OData HTTP:", response.status_code)
+
+    if not response.ok:
+        print("OData ERROR:", response.text[:2000])
+
     response.raise_for_status()
 
     data = response.json()
@@ -112,7 +134,6 @@ def find_onec_invoices(shipment_ref):
             and doc.get("ДокументОснование_Type") == SHIPMENT_TYPE
         )
     ]
-
 
 def build_invoice_payload(shipment):
     """Подготовить JSON счёта-фактуры по реализации."""
