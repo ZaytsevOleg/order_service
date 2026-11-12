@@ -473,6 +473,11 @@ def post_onec_shipment(ref_key):
             "already_posted": True,
         }
 
+    if before.get("DeletionMark"):
+        raise OneCShipmentError(
+            "Нельзя проводить реализацию, помеченную на удаление"
+        )
+
     original_amount = Decimal(
         str(before.get("СуммаДокумента", 0))
     )

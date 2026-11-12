@@ -22,6 +22,17 @@ from sales.services.notifications.order_notifications import (
 from sales.services.notifications.processor import (
     process_order_notifications,
 )
+from sales.services.onec_shipments import (
+    find_onec_shipments,
+    create_onec_shipment,
+    post_onec_shipment,
+)
+
+from sales.services.onec_invoices import (
+    find_onec_invoices,
+    create_onec_invoice,
+    post_onec_invoice,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -217,9 +228,154 @@ def sync_order_to_onec(order_id):
                 )
 
         elif order.onec_shipping_mode == Order.ONEC_MODE_FULL_SHIPMENT:
-            # Реализацию и счёт-фактуру добавим следующим этапом.
+
+            # 1. Ищем существующие реализации
+            shipments = find_onec_shipments(ref_key)
+
+            active_shipments = [
+                shipment
+                for shipment in shipments
+                if not shipment.get("DeletionMark")
+            ]
+
+            if len(active_shipments) > 1:
+                raise OrderSyncError(
+                    "В 1С найдено несколько действующих реализаций "
+                    f"по заказу {ref_key}"
+                )
+
+            if active_shipments:
+                shipment_ref = active_shipments[0]["Ref_Key"]
+
+                logger.info(
+                    "Заказ %s: найдена реализация %s",
+                    order.number,
+                    shipment_ref,
+                )
+
+            else:
+                # 2. Создаём реализацию
+                shipment = create_onec_shipment(ref_key)
+
+                shipment_ref = shipment["ref_key"]
+
+                logger.info(
+                    "Заказ %s: создана реализация %s",
+                    order.number,
+                    shipment_ref,
+                )
+
+            # 3. Проводим реализацию
+            shipment_result = post_onec_shipment(shipment_ref)
+
+            if not shipment_result.get("posted"):
+                raise OrderSyncError(
+                    "1С не подтвердила проведение реализации"
+                )
+
+            logger.info(
+                "Заказ %s: реализация %s проведена",
+                order.number,
+                shipment_ref,
+            )
+
             # Статус 3 пока не устанавливаем.
-            pass
+            # 4. Ищем существующие счета-фактуры
+            invoices = find_onec_invoices(shipment_ref)
+
+            active_invoices = [
+                invoice
+                for invoice in invoices
+                if not invoice.get("DeletionMark")
+            ]
+
+            if len(active_invoices) > 1:
+                raise OrderSyncError(
+                    "В 1С найдено несколько действующих счетов-фактур "
+                    f"по реализации {shipment_ref}"
+                )
+
+            if active_invoices:
+                invoice_ref = active_invoices[0]["Ref_Key"]
+
+                logger.info(
+                    "Заказ %s: найден счёт-фактура %s",
+                    order.number,
+                    invoice_ref,
+                )
+
+            else:
+                # 5. Создаём счёт-фактуру
+                invoice_result = create_onec_invoice(shipment_ref)
+                invoice_ref = invoice_result["ref_key"]
+
+                logger.info(
+                    "Заказ %s: создан счёт-фактура %s",
+                    order.number,
+                    invoice_ref,
+                )
+
+            # 6. Проводим счёт-фактуру
+            invoice_result = post_onec_invoice(invoice_ref)
+
+            if not invoice_result.get("posted"):
+                raise OrderSyncError(
+                    "1С не подтвердила проведение счёта-фактуры"
+                )
+
+            logger.info(
+                "Заказ %s: счёт-фактура %s проведён",
+                order.number,
+                invoice_ref,
+            )
+
+            # 7. Все три документа успешно проведены.
+            # Устанавливаем статус 3 — Оформлен.
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(pk=order_id)
+
+                if order.status == Order.STATUS_DRAFT:
+                    order.status = Order.STATUS_CONFIRMED
+                    order.save(update_fields=["status", "updated_at"])
+
+            logger.info(
+                "Заказ %s: full_shipment завершён, статус %s",
+                order.number,
+                order.status,
+            )
+
+            # 8. Уведомления менеджеру и оператору.
+            try:
+                order = Order.objects.select_related(
+                    "contract__manager"
+                ).get(pk=order_id)
+
+                created_count = enqueue_order_notifications(order)
+
+                logger.info(
+                    "Заказ %s: создано уведомлений %s",
+                    order.number,
+                    created_count,
+                )
+
+                processed_count = process_order_notifications(
+                    order_id=order.pk,
+                    limit=4,
+                )
+
+                logger.info(
+                    "Заказ %s: обработано уведомлений %s",
+                    order.number,
+                    processed_count,
+                )
+
+            except Exception:
+                # Ошибка уведомлений не отменяет успешное
+                # создание документов в 1С.
+                logger.exception(
+                    "Не удалось отправить уведомления для заказа %s",
+                    order_id,
+                )
 
         else:
             raise OrderSyncError(
