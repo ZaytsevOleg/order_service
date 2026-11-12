@@ -415,3 +415,116 @@ def create_onec_shipment(order_ref):
             data.get("ЭтапыГрафикаОплаты", [])
         ),
     }
+
+
+def post_onec_shipment(ref_key):
+    """
+    Проводит существующую реализацию через OData.
+    Проверяет результат по фактическому состоянию документа.
+    """
+    from uuid import UUID
+    from decimal import Decimal
+
+    try:
+        ref_key = str(UUID(str(ref_key)))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise OneCShipmentError(
+            "Некорректный Ref_Key реализации"
+        ) from exc
+
+    connection = get_onec_connection()
+
+    base_url = (
+        connection.base_url.rstrip("/")
+        + f"/Document_РеализацияТоваровУслуг(guid'{ref_key}')"
+    )
+
+    auth = (
+        connection.username,
+        decrypt_password(connection.encrypted_password),
+    )
+
+    def read_document():
+        response = requests.get(
+            base_url,
+            params={"$format": "json"},
+            auth=auth,
+            timeout=connection.timeout,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    try:
+        before = read_document()
+    except (requests.RequestException, ValueError) as exc:
+        raise OneCShipmentError(
+            f"Не удалось прочитать реализацию: {exc}"
+        ) from exc
+
+    if before.get("Posted"):
+        return {
+            "ref_key": ref_key,
+            "number": before.get("Number"),
+            "posted": True,
+            "already_posted": True,
+        }
+
+    original_amount = Decimal(
+        str(before.get("СуммаДокумента", 0))
+    )
+    original_order = before.get("ЗаказКлиента")
+
+    try:
+        response = requests.post(
+            base_url + "/Post",
+            params={"$format": "json"},
+            json={"PostingMode": "NonOperational"},
+            auth=auth,
+            timeout=connection.timeout,
+        )
+        post_http_status = response.status_code
+        post_error = response.text[:1500] if not response.ok else None
+    except requests.RequestException as exc:
+        post_http_status = None
+        post_error = str(exc)
+
+    # Проверяем состояние даже при HTTP 500 или потере ответа.
+    try:
+        after = read_document()
+    except (requests.RequestException, ValueError) as exc:
+        raise OneCShipmentError(
+            "Результат проведения неизвестен. "
+            f"HTTP POST: {post_http_status}. "
+            f"Ошибка POST: {post_error}. "
+            "Необходимо проверить документ в 1С перед повтором."
+        ) from exc
+
+    if not after.get("Posted"):
+        raise OneCShipmentError(
+            "Реализация не проведена. "
+            f"HTTP POST: {post_http_status}. "
+            f"Ошибка: {post_error}"
+        )
+
+    if Decimal(str(after.get("СуммаДокумента", 0))) != original_amount:
+        raise OneCShipmentError(
+            "После проведения изменилась сумма реализации"
+        )
+
+    if after.get("ЗаказКлиента") != original_order:
+        raise OneCShipmentError(
+            "После проведения изменилась связь с заказом"
+        )
+
+    return {
+        "ref_key": ref_key,
+        "number": after.get("Number"),
+        "posted": True,
+        "already_posted": False,
+        "post_http_status": post_http_status,
+        "agreed": after.get("Согласован"),
+        "stock_types_count": len(after.get("ВидыЗапасов", [])),
+        "payment_schedule_count": len(
+            after.get("ЭтапыГрафикаОплаты", [])
+        ),
+    }
