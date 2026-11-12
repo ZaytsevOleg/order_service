@@ -215,3 +215,88 @@ def build_invoice_payload(shipment):
 
     return payload
 
+def create_onec_invoice(shipment_ref):
+    """Создать счёт-фактуру по реализации без проведения."""
+
+    shipment = get_onec_shipment_for_invoice(shipment_ref)
+
+    existing = [
+        doc for doc in find_onec_invoices(shipment_ref)
+        if not doc.get("DeletionMark")
+    ]
+
+    if existing:
+        raise OneCInvoiceError(
+            "По реализации уже существует счёт-фактура: "
+            + ", ".join(
+                str(doc.get("Number"))
+                for doc in existing
+            )
+        )
+
+    payload = build_invoice_payload(shipment)
+
+    session, base_url, timeout = _get_odata_session()
+
+    url = f"{base_url}/{INVOICE_ENTITY}"
+
+    response = session.post(
+        url,
+        params={"$format": "json"},
+        json=payload,
+        timeout=timeout,
+    )
+
+    print("POST HTTP:", response.status_code)
+
+    if not response.ok:
+        print("POST ERROR:", response.text[:3000])
+        raise OneCInvoiceError(
+            f"Ошибка создания счёта-фактуры: HTTP {response.status_code}"
+        )
+
+    result = response.json()
+    invoice_ref = result.get("Ref_Key")
+
+    if not invoice_ref:
+        raise OneCInvoiceError(
+            "1С не вернула Ref_Key созданного счёта-фактуры"
+        )
+
+    # Читаем сохранённый документ из 1С
+    get_response = session.get(
+        f"{url}(guid'{invoice_ref}')",
+        params={"$format": "json"},
+        timeout=timeout,
+    )
+    get_response.raise_for_status()
+
+    invoice = get_response.json()
+
+    if invoice.get("Number", "").strip() != shipment["Number"].strip():
+        raise OneCInvoiceError(
+            "Счёт-фактура создана, но номер не совпадает "
+            f"с реализацией. Ref_Key={invoice_ref}, "
+            f"номер={invoice.get('Number')}"
+        )
+
+    if invoice.get("ДокументОснование") != shipment_ref:
+        raise OneCInvoiceError(
+            "Счёт-фактура создана, но основание отличается. "
+            f"Ref_Key={invoice_ref}"
+        )
+
+    return {
+        "ref_key": invoice_ref,
+        "number": invoice.get("Number"),
+        "date": invoice.get("Date"),
+        "posted": invoice.get("Posted"),
+        "shipment_ref": invoice.get("ДокументОснование"),
+        "responsible": invoice.get("Ответственный_Key"),
+        "director": invoice.get("Руководитель_Key"),
+        "accountant": invoice.get("ГлавныйБухгалтер_Key"),
+        "author": invoice.get("Автор_Key"),
+        "documents_count": len(
+            invoice.get("ДокументыОснования", [])
+        ),
+    }
