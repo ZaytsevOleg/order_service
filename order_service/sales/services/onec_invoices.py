@@ -300,3 +300,85 @@ def create_onec_invoice(shipment_ref):
             invoice.get("ДокументыОснования", [])
         ),
     }
+
+
+def post_onec_invoice(invoice_ref):
+    """Провести существующий счёт-фактуру через OData."""
+
+    session, base_url, timeout = _get_odata_session()
+
+    url = (
+        f"{base_url}/{INVOICE_ENTITY}"
+        f"(guid'{invoice_ref}')"
+    )
+
+    def read_invoice():
+        response = session.get(
+            url,
+            params={"$format": "json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    invoice = read_invoice()
+
+    if invoice.get("DeletionMark"):
+        raise OneCInvoiceError(
+            "Счёт-фактура помечена на удаление"
+        )
+
+    if invoice.get("Posted"):
+        return {
+            "ref_key": invoice_ref,
+            "number": invoice.get("Number"),
+            "posted": True,
+            "already_posted": True,
+        }
+
+    # Проверяем реализацию-основание
+    shipment_ref = invoice.get("ДокументОснование")
+
+    if not shipment_ref:
+        raise OneCInvoiceError(
+            "Не указана реализация-основание"
+        )
+
+    shipment = get_onec_shipment_for_invoice(shipment_ref)
+
+    if invoice.get("Number", "").strip() != shipment["Number"].strip():
+        raise OneCInvoiceError(
+            "Номер счёта-фактуры не совпадает с реализацией"
+        )
+
+    post_url = url + "/Post()"
+
+    response = session.post(
+        post_url,
+        timeout=timeout,
+    )
+
+    if not response.ok:
+        print("POST ERROR:", response.text[:3000])
+        raise OneCInvoiceError(
+            f"Ошибка проведения счёта-фактуры: HTTP {response.status_code}"
+        )
+
+    # Повторно читаем документ
+    invoice = read_invoice()
+
+    if not invoice.get("Posted"):
+        raise OneCInvoiceError(
+            "1С вернула успешный ответ, "
+            "но счёт-фактура осталась непроведённой"
+        )
+
+    return {
+        "ref_key": invoice_ref,
+        "number": invoice.get("Number"),
+        "posted": True,
+        "already_posted": False,
+        "post_http_status": response.status_code,
+        "director": invoice.get("Руководитель_Key"),
+        "accountant": invoice.get("ГлавныйБухгалтер_Key"),
+    }
