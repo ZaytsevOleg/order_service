@@ -334,7 +334,10 @@ def sync_order_to_onec(order_id):
             with transaction.atomic():
                 order = Order.objects.select_for_update().get(pk=order_id)
 
-                if order.status == Order.STATUS_DRAFT:
+                if order.status in (
+                    Order.STATUS_DRAFT,
+                    Order.STATUS_APPROVAL,
+                ):
                     order.status = Order.STATUS_CONFIRMED
                     order.save(update_fields=["status", "updated_at"])
 
