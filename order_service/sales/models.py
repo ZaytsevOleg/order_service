@@ -755,3 +755,59 @@ class OrderNotification(models.Model):
             f"{self.channel} | "
             f"{self.status}"
         )    
+
+
+class OrderSyncTask(models.Model):
+    STATUS_PENDING = "pending"
+    STATUS_PROCESSING = "processing"
+    STATUS_SUCCESS = "success"
+    STATUS_FAILED = "failed"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Ожидает"),
+        (STATUS_PROCESSING, "Выполняется"),
+        (STATUS_SUCCESS, "Выполнена"),
+        (STATUS_FAILED, "Ошибка"),
+    ]
+
+    order = models.OneToOneField(
+        "sales.Order",
+        on_delete=models.CASCADE,
+        related_name="sync_task",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+
+    attempts = models.PositiveIntegerField(default=0)
+
+    last_error = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    finished_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    next_retry_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        verbose_name = "Задача синхронизации с 1С"
+        verbose_name_plural = "Задачи синхронизации с 1С"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.order_id}: {self.status}"

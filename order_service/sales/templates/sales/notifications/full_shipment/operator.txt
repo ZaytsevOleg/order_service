@@ -1,4 +1,4 @@
-Заказ клиента оформлен и ожидает дальнейшей обработки.
+Заказ клиента успешно оформлен.
 
 {% include "sales/notifications/includes/order_details.txt" %}
 
