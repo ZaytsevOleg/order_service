@@ -17,13 +17,16 @@ RETRY_DELAY_SECONDS = 60
 STALE_AFTER_MINUTES = 15
 
 
+
 def recover_stale_tasks():
     """
-    Возвращаем зависшие задачи в очередь.
+    Восстанавливает задачи синхронизации с 1С,
+    прерванные при остановке единственного worker.
+
+    Вызывается один раз при запуске worker.
     """
-    threshold = timezone.now() - timedelta(
-        minutes=STALE_AFTER_MINUTES
-    )
+    now = timezone.now()
+    recovered_count = 0
 
     with transaction.atomic():
         tasks = (
@@ -31,24 +34,43 @@ def recover_stale_tasks():
             .select_for_update(skip_locked=True)
             .filter(
                 status=OrderSyncTask.STATUS_PROCESSING,
-                started_at__lt=threshold,
             )
         )
 
         for task in tasks:
             task.status = OrderSyncTask.STATUS_FAILED
-            task.next_retry_at = timezone.now()
+
+            if task.attempts < MAX_ATTEMPTS:
+                task.next_retry_at = now
+            else:
+                task.next_retry_at = None
+
             task.last_error = (
-                "Задача восстановлена после превышения "
-                "времени выполнения"
+                "Предыдущая обработка была прервана. "
+                "Задача восстановлена после перезапуска worker."
             )
+
+            task.finished_at = now
+
             task.save(
                 update_fields=[
                     "status",
                     "next_retry_at",
                     "last_error",
+                    "finished_at",
                 ]
             )
+
+            recovered_count += 1
+
+    if recovered_count:
+        logger.warning(
+            "Восстановлено прерванных задач синхронизации: %s",
+            recovered_count,
+        )
+
+    return recovered_count
+
 
 
 def claim_task():
@@ -158,10 +180,11 @@ class Command(BaseCommand):
             "Worker синхронизации с 1С запущен"
         )
 
+        close_old_connections()
+        recover_stale_tasks()
+
         while True:
             close_old_connections()
-
-            recover_stale_tasks()
 
             task_id = claim_task()
 
