@@ -28,7 +28,8 @@ from sales.models import (
     OrderItem, 
     OrderLog,
     WorkCalendarException, 
-    TransportCompany
+    TransportCompany,
+    OrderSyncTask
     )
 from sales.services.order_logging import (
     log_order_event,
@@ -5428,10 +5429,11 @@ def confirm_order_draft(
                 ]
             )
 
-            transaction.on_commit(
-                lambda order_id=order.pk: (
-                    sync_confirmed_order_to_onec(order_id)
-                ),
+            sync_task, created = OrderSyncTask.objects.get_or_create(
+                order=order,
+                defaults={
+                    "status": OrderSyncTask.STATUS_PENDING,
+                },
             )
 
             return JsonResponse(
@@ -5447,6 +5449,12 @@ def confirm_order_draft(
 
                     "status_name":
                         order.get_status_display(),
+
+                    "sync_status": 
+                        sync_task.status,
+                        
+                    "sync_message": 
+                        "Заказ принят в обработку",                        
 
                     "amount":
                         str(order.amount),
